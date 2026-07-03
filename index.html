@@ -7,6 +7,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
@@ -215,7 +217,7 @@
             min-width: 80px;
         }
 
-        .status-stable {
+        .status-stable, .status-stabil {
             background: #d4edda;
             color: #155724;
         }
@@ -233,6 +235,11 @@
         .status-monitoring {
             background: #cce5ff;
             color: #004085;
+        }
+
+        .status-pulang {
+            background: #e0e0e0;
+            color: #444;
         }
 
         .task-count {
@@ -498,6 +505,11 @@
         <div style="font-size:13px; color:#666;">Menyambungkan ke database...</div>
     </div>
 
+    <!-- Banner Offline -->
+    <div id="offlineBanner" style="display:none; position:sticky; top:0; z-index:60; width:100%; background:#d32f2f; color:white; padding:8px 14px; font-size:11.5px; font-weight:600; text-align:center;">
+        📡 Tidak ada koneksi internet — data yang diinput akan otomatis tersimpan & sync begitu koneksi kembali.
+    </div>
+
     <div class="container">
         <button id="btnBackDashboard" onclick="switchTab('dashboard')" style="display:none; position:sticky; top:0; z-index:50; width:100%; background:#8B3A62; color:white; border:none; padding:10px 14px; font-size:12.5px; font-weight:700; text-align:left; cursor:pointer;">← Kembali ke Dashboard</button>
 
@@ -571,46 +583,79 @@
                         🧩 Menu Fitur
                     </div>
                     <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;">
-                        <div onclick="switchTab('pasien')" style="background: white; border-radius: 10px; padding: 10px 4px; text-align: center; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.06);">
-                            <div style="width: 34px; height: 34px; border-radius: 9px; background: #fde3ea; display: flex; align-items: center; justify-content: center; font-size: 16px; margin: 0 auto 6px auto;">🩺</div>
-                            <div style="font-size: 9.5px; font-weight: 700; color: #333; line-height: 1.15;">Daftar</div>
-                            <div style="font-size: 9.5px; color: #999; line-height: 1.15;">Pasien</div>
+                        <!-- 1. Terima pasien baru -->
+                        <div id="menuCardTambahPasien" onclick="switchTab('pasien'); setTimeout(()=>document.getElementById('ranapNoBed').focus(), 100);" style="background: linear-gradient(135deg, #8B3A62 0%, #C85A54 100%); border-radius: 10px; padding: 10px 4px; text-align: center; cursor: pointer; box-shadow: 0 2px 8px rgba(139,58,98,0.3);">
+                            <div style="width: 34px; height: 34px; border-radius: 9px; background: rgba(255,255,255,0.25); display: flex; align-items: center; justify-content: center; font-size: 16px; margin: 0 auto 6px auto;">🛏️➕</div>
+                            <div style="font-size: 9.5px; font-weight: 700; color: white; line-height: 1.15;">Pasien</div>
+                            <div style="font-size: 9.5px; color: rgba(255,255,255,0.9); line-height: 1.15;">Ranap Baru</div>
                         </div>
-                        <div onclick="switchTab('penunjang')" style="background: white; border-radius: 10px; padding: 10px 4px; text-align: center; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.06);">
-                            <div style="width: 34px; height: 34px; border-radius: 9px; background: #e3ecfd; display: flex; align-items: center; justify-content: center; font-size: 16px; margin: 0 auto 6px auto;">🔬</div>
-                            <div style="font-size: 9.5px; font-weight: 700; color: #333; line-height: 1.15;">Hasil</div>
-                            <div style="font-size: 9.5px; color: #999; line-height: 1.15;">Penunjang</div>
+                        <!-- 2. Visit / kunjungan harian -->
+                        <div onclick="switchTab('visit')" style="background: white; border-radius: 10px; padding: 10px 4px; text-align: center; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.06);">
+                            <div style="width: 34px; height: 34px; border-radius: 9px; background: #fdeaea; display: flex; align-items: center; justify-content: center; font-size: 16px; margin: 0 auto 6px auto;">🩺</div>
+                            <div style="font-size: 9.5px; font-weight: 700; color: #333; line-height: 1.15;">Visit</div>
+                            <div style="font-size: 9.5px; color: #999; line-height: 1.15;">Kunjungan</div>
                         </div>
+                        <!-- 3. Observasi vital sign (rutin, sering) -->
+                        <div onclick="switchTab('observasi')" style="background: white; border-radius: 10px; padding: 10px 4px; text-align: center; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.06);">
+                            <div style="width: 34px; height: 34px; border-radius: 9px; background: #e0f2fe; display: flex; align-items: center; justify-content: center; font-size: 16px; margin: 0 auto 6px auto;">🌡️</div>
+                            <div style="font-size: 9.5px; font-weight: 700; color: #333; line-height: 1.15;">Observasi</div>
+                            <div style="font-size: 9.5px; color: #999; line-height: 1.15;">Vital Sign</div>
+                        </div>
+                        <!-- 4. Progress note harian -->
                         <div onclick="switchTab('progressnote')" style="background: white; border-radius: 10px; padding: 10px 4px; text-align: center; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.06);">
                             <div style="width: 34px; height: 34px; border-radius: 9px; background: #e2f6ea; display: flex; align-items: center; justify-content: center; font-size: 16px; margin: 0 auto 6px auto;">📝</div>
                             <div style="font-size: 9.5px; font-weight: 700; color: #333; line-height: 1.15;">Progress</div>
                             <div style="font-size: 9.5px; color: #999; line-height: 1.15;">Note</div>
                         </div>
-                        <div onclick="switchTab('trend')" style="background: white; border-radius: 10px; padding: 10px 4px; text-align: center; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.06);">
-                            <div style="width: 34px; height: 34px; border-radius: 9px; background: #ede4fb; display: flex; align-items: center; justify-content: center; font-size: 16px; margin: 0 auto 6px auto;">📈</div>
-                            <div style="font-size: 9.5px; font-weight: 700; color: #333; line-height: 1.15;">Trend</div>
-                            <div style="font-size: 9.5px; color: #999; line-height: 1.15;">Diagnosis</div>
+                        <!-- 5. Hasil penunjang (lab/rontgen masuk) -->
+                        <div onclick="switchTab('penunjang')" style="background: white; border-radius: 10px; padding: 10px 4px; text-align: center; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.06);">
+                            <div style="width: 34px; height: 34px; border-radius: 9px; background: #e3ecfd; display: flex; align-items: center; justify-content: center; font-size: 16px; margin: 0 auto 6px auto;">🔬</div>
+                            <div style="font-size: 9.5px; font-weight: 700; color: #333; line-height: 1.15;">Hasil</div>
+                            <div style="font-size: 9.5px; color: #999; line-height: 1.15;">Penunjang</div>
                         </div>
+                        <!-- 6. Task pending (koordinasi kerja, dicek terus) -->
                         <div onclick="switchTab('pending')" style="background: white; border-radius: 10px; padding: 10px 4px; text-align: center; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.06);">
                             <div style="width: 34px; height: 34px; border-radius: 9px; background: #fde8e8; display: flex; align-items: center; justify-content: center; font-size: 16px; margin: 0 auto 6px auto;">⚠️</div>
                             <div style="font-size: 9.5px; font-weight: 700; color: #333; line-height: 1.15;">Task</div>
                             <div style="font-size: 9.5px; color: #999; line-height: 1.15;">Pending</div>
                         </div>
-                        <div id="menuCardImportExport" onclick="document.getElementById('modalImportExport').style.display='block'" style="background: white; border-radius: 10px; padding: 10px 4px; text-align: center; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.06);">
-                            <div style="width: 34px; height: 34px; border-radius: 9px; background: #fdf3d9; display: flex; align-items: center; justify-content: center; font-size: 16px; margin: 0 auto 6px auto;">📊</div>
-                            <div style="font-size: 9.5px; font-weight: 700; color: #333; line-height: 1.15;">Import</div>
-                            <div style="font-size: 9.5px; color: #999; line-height: 1.15;">Export</div>
+                        <!-- 7. Daftar pasien (lihat semua) -->
+                        <div onclick="switchTab('pasien')" style="background: white; border-radius: 10px; padding: 10px 4px; text-align: center; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.06);">
+                            <div style="width: 34px; height: 34px; border-radius: 9px; background: #fde3ea; display: flex; align-items: center; justify-content: center; font-size: 16px; margin: 0 auto 6px auto;">🩺</div>
+                            <div style="font-size: 9.5px; font-weight: 700; color: #333; line-height: 1.15;">Daftar</div>
+                            <div style="font-size: 9.5px; color: #999; line-height: 1.15;">Pasien</div>
                         </div>
+                        <!-- 8. Trend diagnosis (evaluasi perkembangan) -->
+                        <div onclick="switchTab('trend')" style="background: white; border-radius: 10px; padding: 10px 4px; text-align: center; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.06);">
+                            <div style="width: 34px; height: 34px; border-radius: 9px; background: #ede4fb; display: flex; align-items: center; justify-content: center; font-size: 16px; margin: 0 auto 6px auto;">📈</div>
+                            <div style="font-size: 9.5px; font-weight: 700; color: #333; line-height: 1.15;">Trend</div>
+                            <div style="font-size: 9.5px; color: #999; line-height: 1.15;">Diagnosis</div>
+                        </div>
+                        <!-- 9. Rekam medis lengkap (review) -->
+                        <div onclick="switchTab('rekammedis')" style="background: white; border-radius: 10px; padding: 10px 4px; text-align: center; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.06);">
+                            <div style="width: 34px; height: 34px; border-radius: 9px; background: #e8eaf6; display: flex; align-items: center; justify-content: center; font-size: 16px; margin: 0 auto 6px auto;">📚</div>
+                            <div style="font-size: 9.5px; font-weight: 700; color: #333; line-height: 1.15;">Rekam</div>
+                            <div style="font-size: 9.5px; color: #999; line-height: 1.15;">Medis</div>
+                        </div>
+                        <!-- 10. Form operan (serah terima shift, akhir hari) -->
                         <div onclick="switchTab('operan')" style="background: white; border-radius: 10px; padding: 10px 4px; text-align: center; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.06);">
                             <div style="width: 34px; height: 34px; border-radius: 9px; background: #e0f7f5; display: flex; align-items: center; justify-content: center; font-size: 16px; margin: 0 auto 6px auto;">🔄</div>
                             <div style="font-size: 9.5px; font-weight: 700; color: #333; line-height: 1.15;">Form</div>
                             <div style="font-size: 9.5px; color: #999; line-height: 1.15;">Operan</div>
                         </div>
+                        <!-- 11. Per DPJP (filter admin) -->
                         <div onclick="switchTab('dpjp')" style="background: white; border-radius: 10px; padding: 10px 4px; text-align: center; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.06);">
                             <div style="width: 34px; height: 34px; border-radius: 9px; background: #e3f0fd; display: flex; align-items: center; justify-content: center; font-size: 16px; margin: 0 auto 6px auto;">👨‍⚕️</div>
                             <div style="font-size: 9.5px; font-weight: 700; color: #333; line-height: 1.15;">Per</div>
                             <div style="font-size: 9.5px; color: #999; line-height: 1.15;">DPJP</div>
                         </div>
+                        <!-- 12. Import/Export (admin, jarang) -->
+                        <div id="menuCardImportExport" onclick="document.getElementById('modalImportExport').style.display='block'" style="background: white; border-radius: 10px; padding: 10px 4px; text-align: center; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.06);">
+                            <div style="width: 34px; height: 34px; border-radius: 9px; background: #fdf3d9; display: flex; align-items: center; justify-content: center; font-size: 16px; margin: 0 auto 6px auto;">📊</div>
+                            <div style="font-size: 9.5px; font-weight: 700; color: #333; line-height: 1.15;">Import</div>
+                            <div style="font-size: 9.5px; color: #999; line-height: 1.15;">Export</div>
+                        </div>
+                        <!-- 13. Setting (paling jarang dipakai) -->
                         <div id="menuCardSettings" onclick="switchTab('settings')" style="background: white; border-radius: 10px; padding: 10px 4px; text-align: center; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.06);">
                             <div style="width: 34px; height: 34px; border-radius: 9px; background: #f0e8fd; display: flex; align-items: center; justify-content: center; font-size: 16px; margin: 0 auto 6px auto;">⚙️</div>
                             <div style="font-size: 9.5px; font-weight: 700; color: #333; line-height: 1.15;">Setting</div>
@@ -623,6 +668,55 @@
 
             <!-- Daftar Pasien Tab -->
             <div id="pasien" class="tab-content">
+
+                <!-- Tabel Input Pasien Ranap Baru (cepat, field wajib minimal) -->
+                <div id="cardInputRanapBaru" style="background: white; border: 1px solid #eee; border-radius: 10px; padding: 14px; margin-bottom: 18px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 10px;">
+                        <h3 style="font-size: 13.5px; color: #8B3A62;">🛏️➕ Input Pasien Ranap Baru</h3>
+                        <span style="font-size: 10.5px; color: #999;">Isi baris di bawah, klik Simpan</span>
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th style="min-width:80px;">No. Bed*</th>
+                                    <th style="min-width:140px;">Nama Pasien*</th>
+                                    <th style="min-width:90px;">Umur</th>
+                                    <th style="min-width:100px;">No. RM</th>
+                                    <th style="min-width:130px;">Tgl Masuk*</th>
+                                    <th style="min-width:180px;">DPJP* (pisah koma jika &gt;1)</th>
+                                    <th style="min-width:110px;">Status*</th>
+                                    <th style="min-width:160px;">Diagnosis Awal</th>
+                                    <th style="min-width:90px;">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><input type="text" id="ranapNoBed" placeholder="A1" style="width:100%;"></td>
+                                    <td><input type="text" id="ranapNama" placeholder="Nama lengkap" style="width:100%;"></td>
+                                    <td><input type="text" id="ranapUmur" placeholder="45 thn" style="width:100%;"></td>
+                                    <td><input type="text" id="ranapNoRM" placeholder="RM-001" style="width:100%;"></td>
+                                    <td><input type="date" id="ranapTglMasuk" style="width:100%;"></td>
+                                    <td><input type="text" id="ranapDPJP" placeholder="dr. A, dr. B" list="datalistDPJP" style="width:100%;"></td>
+                                    <td>
+                                        <select id="ranapStatus" style="width:100%;">
+                                            <option value="stabil">Stabil</option>
+                                            <option value="monitoring">Monitoring</option>
+                                            <option value="critical">Kritis</option>
+                                        </select>
+                                    </td>
+                                    <td><input type="text" id="ranapDiagnosisAwal" placeholder="Boleh diisi nanti" style="width:100%;"></td>
+                                    <td><button class="btn-sm btn-primary" style="width:100%;" onclick="simpanRanapBaru()">💾 Simpan</button></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <p style="font-size: 10.5px; color: #999; margin-top: 8px;">
+                        * wajib diisi. Diagnosis/keluhan/terapi/rencana lengkap bisa dilengkapi belakangan lewat tombol <strong>Edit</strong> di tabel bawah.
+                        Setelah Simpan, baris ini otomatis kosong lagi supaya bisa langsung input pasien berikutnya.
+                    </p>
+                </div>
+
                 <div style="display: grid; grid-template-columns: 2fr 1fr 2fr auto; gap: 10px; margin-bottom: 20px;">
                     <input type="text" id="searchPasien" placeholder="Cari nama / No. Bed..." onkeyup="filterPasien()">
                     <select id="filterStatus" onchange="filterPasien()">
@@ -630,11 +724,12 @@
                         <option value="stabil">Stabil</option>
                         <option value="monitoring">Monitoring</option>
                         <option value="critical">Kritis</option>
+                        <option value="pulang">Sudah Pulang</option>
                     </select>
                     <select id="filterDPJP" onchange="filterPasien()">
                         <option value="">Semua DPJP</option>
                     </select>
-                    <button class="btn-primary" id="btnTambahPasien" onclick="openModalTambahPasien()">+ Tambah Pasien</button>
+                    <button class="btn-primary" id="btnTambahPasien" onclick="openModalTambahPasien()">+ Form Lengkap</button>
                 </div>
 
                 <div class="table-container">
@@ -658,10 +753,22 @@
 
             <!-- Per DPJP Tab -->
             <div id="dpjp" class="tab-content">
-                <div style="margin-bottom: 20px;">
-                    <select id="selectDPJP" onchange="displayPerDPJP()" style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; min-width: 250px;">
+                <div style="display:flex; gap:10px; margin-bottom: 16px; flex-wrap:wrap; align-items:center;">
+                    <select id="selectDPJP" onchange="displayPerDPJP()" style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; min-width: 250px; flex:1;">
                         <option value="">-- Pilih DPJP --</option>
                     </select>
+                </div>
+
+                <div id="cardTambahDPJPBaru" style="background: white; border: 1px solid #eee; border-radius: 10px; padding: 14px; margin-bottom: 18px;">
+                    <h3 style="font-size: 13px; color: #8B3A62; margin-bottom: 8px;">➕ Tambah DPJP Baru</h3>
+                    <p style="font-size: 11.5px; color: #999; margin-bottom: 10px;">
+                        Tambahkan nama dokter ke daftar DPJP klinik (akan langsung muncul di dropdown atas & jadi saran otomatis saat input pasien).
+                    </p>
+                    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                        <input type="text" id="dpjpBaruNamaInput" placeholder="Cth: dr. Andi Wijaya, Sp.PD" style="flex:1; min-width:200px;" onkeydown="if(event.key==='Enter'){event.preventDefault(); tambahDPJPKeDaftar();}">
+                        <button class="btn-sm btn-primary" onclick="tambahDPJPKeDaftar()">+ Tambah</button>
+                    </div>
+                    <div id="daftarDPJPChips" style="display:flex; flex-wrap:wrap; gap:6px; margin-top:12px;"></div>
                 </div>
 
                 <div id="dpjpContent"></div>
@@ -722,6 +829,24 @@
                 <div id="progressNoteContent"></div>
             </div>
 
+            <!-- Visit Tab -->
+            <div id="visit" class="tab-content">
+                <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+                    <input type="text" id="filterVisitPasien" placeholder="Cari pasien..." onkeyup="displayVisit()" style="flex:1; min-width:150px;">
+                    <button class="btn-primary" onclick="openModalVisit()">🩺 + Visit Baru</button>
+                </div>
+                <div id="visitContent"></div>
+            </div>
+
+            <!-- Observasi Tab -->
+            <div id="observasi" class="tab-content">
+                <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+                    <input type="text" id="filterObservasiPasien" placeholder="Cari pasien..." onkeyup="displayObservasi()" style="flex:1; min-width:150px;">
+                    <button class="btn-primary" onclick="openModalObservasi()">🌡️ + Observasi Baru</button>
+                </div>
+                <div id="observasiContent"></div>
+            </div>
+
             <!-- Trend Diagnosis Tab -->
             <div id="trend" class="tab-content">
                 <div style="margin-bottom: 20px;">
@@ -731,6 +856,18 @@
                 </div>
 
                 <div id="trendContent"></div>
+            </div>
+
+            <!-- Rekam Medis Keseluruhan Tab -->
+            <div id="rekammedis" class="tab-content">
+                <div style="display:flex; gap:10px; margin-bottom: 20px; flex-wrap: wrap; align-items:center;">
+                    <select id="selectPasienRekamMedis" onchange="displayRekamMedisLengkap()" style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; min-width: 280px; flex:1;">
+                        <option value="">-- Pilih Pasien untuk Lihat Rekam Medis Lengkap --</option>
+                    </select>
+                    <button class="btn-secondary" id="btnCetakRekamMedisLengkap" style="display:none;" onclick="cetakRekamMedisLengkap(document.getElementById('selectPasienRekamMedis').value)">🖨️ Cetak Semua</button>
+                </div>
+
+                <div id="rekamMedisContent"></div>
             </div>
 
             <!-- Form Operan Tab -->
@@ -1099,7 +1236,12 @@
                     <label>Catatan / Interpretasi</label>
                     <textarea id="penunjangCatatan" placeholder="Hasil abnormal? Ada temuan penting? Tulis di sini..."></textarea>
                 </div>
-                <button type="submit" class="btn-primary" style="width: 100%;">✓ Simpan Hasil Pemeriksaan</button>
+                <div class="form-group">
+                    <label>📷 Foto Hasil (rontgen, EKG, luka, dll — opsional)</label>
+                    <input type="file" id="penunjangFoto" accept="image/*">
+                    <div id="penunjangFotoPreview" style="margin-top:8px;"></div>
+                </div>
+                <button type="submit" class="btn-primary" id="btnSimpanPenunjang" style="width: 100%;">✓ Simpan Hasil Pemeriksaan</button>
             </form>
         </div>
     </div>
@@ -1152,6 +1294,222 @@
                 </div>
                 <button type="submit" class="btn-primary" style="width: 100%;">✓ Simpan Progress Note</button>
             </form>
+        </div>
+    </div>
+
+    <!-- Modal Visit -->
+    <div id="modalVisit" class="modal">
+        <div class="modal-content" style="max-width: 560px;">
+            <div class="modal-header">
+                <h2>🩺 Visit Pasien</h2>
+                <button class="close-btn" onclick="closeModal('modalVisit')">×</button>
+            </div>
+
+            <div class="form-group">
+                <label>No. Bed / Pasien</label>
+                <input type="text" id="visitPasien" placeholder="No. bed atau nama pasien">
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div class="form-group">
+                    <label>Tanggal Visit</label>
+                    <input type="date" id="visitTanggal">
+                </div>
+                <div class="form-group">
+                    <label>Jam Visit</label>
+                    <input type="time" id="visitJam">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Dokter yang Visit</label>
+                <input type="text" id="visitDokter" placeholder="Nama dokter" list="datalistDPJP">
+            </div>
+            <div class="form-group">
+                <label>Temuan / Assessment Saat Visit</label>
+                <textarea id="visitTemuan" placeholder="Kondisi pasien saat divisit, hasil pemeriksaan fisik, perkembangan klinis..."></textarea>
+            </div>
+
+            <!-- Pilihan hasil visit: lanjut rawat (dengan/tanpa task baru) ATAU pulang -->
+            <div style="background:#f5f5f5; border-radius:8px; padding:12px; margin-bottom:14px;">
+                <label style="font-size:12.5px; font-weight:700; color:#333; display:block; margin-bottom:8px;">Hasil Visit:</label>
+                <label style="display:flex; align-items:center; gap:8px; font-size:12.5px; margin-bottom:6px; cursor:pointer;">
+                    <input type="radio" name="visitHasil" value="lanjut" id="radioVisitLanjut" checked onchange="toggleVisitHasil()">
+                    Lanjut rawat inap (opsional tambah task)
+                </label>
+                <label id="labelVisitPulang" style="display:flex; align-items:center; gap:8px; font-size:12.5px; cursor:pointer;">
+                    <input type="radio" name="visitHasil" value="pulang" id="radioVisitPulang" onchange="toggleVisitHasil()">
+                    🏠 Pasien PULANG hari ini
+                </label>
+            </div>
+
+            <!-- Section: Tambah Task (muncul kalau hasil = lanjut) -->
+            <div id="sectionVisitTask">
+                <label style="font-size:12.5px; font-weight:700; color:#8B3A62; display:block; margin-bottom:6px;">➕ Task Lanjutan dari Visit Ini (opsional)</label>
+                <div id="visitTaskListContainer" style="margin-bottom:8px;"></div>
+                <div style="display:grid; grid-template-columns: 2fr 1fr 1fr auto; gap:6px; margin-bottom:10px;">
+                    <input type="text" id="visitTaskInput" placeholder="Deskripsi task...">
+                    <select id="visitTaskPrioritas">
+                        <option value="pending">Normal</option>
+                        <option value="urgent">Urgent</option>
+                    </select>
+                    <input type="text" id="visitTaskPIC" placeholder="PIC">
+                    <button type="button" class="btn-sm btn-secondary" onclick="tambahVisitTaskChip()">+ Tambah</button>
+                </div>
+            </div>
+
+            <!-- Section: Info Pulang (muncul kalau hasil = pulang) -->
+            <div id="sectionVisitPulang" style="display:none;">
+                <div class="form-group">
+                    <label>Kondisi Saat Pulang</label>
+                    <textarea id="visitKondisiPulang" placeholder="Cth: Membaik, keluhan hilang, hemodinamik stabil..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label>💊 Obat Pulang</label>
+                    <textarea id="visitObatPulang" placeholder="Nama obat, dosis, cara & jadwal minum. Cth: Amoxicillin 500mg 3x1 (7 hari), Paracetamol 500mg bila demam"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Instruksi Lain (diet, aktivitas, tanda bahaya)</label>
+                    <textarea id="visitInstruksiPulang" placeholder="Diet, aktivitas, tanda bahaya yang harus diwaspadai..."></textarea>
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="form-group">
+                        <label>📅 Tanggal Kontrol</label>
+                        <input type="date" id="visitTglKontrol">
+                    </div>
+                    <div class="form-group">
+                        <label>Tempat / Keterangan Kontrol</label>
+                        <input type="text" id="visitKontrolPulang" placeholder="Cth: Poli Anak, dr. Rina">
+                    </div>
+                </div>
+            </div>
+
+            <button type="button" class="btn-primary" style="width: 100%;" onclick="simpanVisit()">✓ Simpan Visit</button>
+        </div>
+    </div>
+
+    <!-- Modal Resume Pulang (edit langsung, tidak harus lewat Visit) -->
+    <div id="modalResumePulang" class="modal">
+        <div class="modal-content" style="max-width: 540px;">
+            <div class="modal-header">
+                <h2>🏠 Resume Pulang</h2>
+                <button class="close-btn" onclick="closeModal('modalResumePulang')">×</button>
+            </div>
+            <p style="font-size: 11.5px; color: #999; margin-bottom: 12px;">
+                Isi/ubah data resume pulang pasien ini. Bisa diisi kapan saja — tidak perlu lewat form Visit.
+                Status pasien akan otomatis diubah jadi <strong>PULANG</strong> setelah disimpan.
+            </p>
+
+            <div class="form-group">
+                <label>No. Bed / Pasien</label>
+                <input type="text" id="resumeNoBed" readonly style="background:#f0f0f0; cursor:not-allowed;">
+            </div>
+            <div class="form-group">
+                <label>Tanggal Pulang</label>
+                <input type="date" id="resumeTglPulang">
+            </div>
+            <div class="form-group">
+                <label>Kondisi Saat Pulang</label>
+                <textarea id="resumeKondisiPulang" placeholder="Cth: Membaik, keluhan hilang, hemodinamik stabil..."></textarea>
+            </div>
+            <div class="form-group">
+                <label>💊 Obat Pulang</label>
+                <textarea id="resumeObatPulang" placeholder="Nama obat, dosis, cara & jadwal minum. Cth: Amoxicillin 500mg 3x1 (7 hari), Paracetamol 500mg bila demam"></textarea>
+            </div>
+            <div class="form-group">
+                <label>Instruksi Lain (diet, aktivitas, tanda bahaya)</label>
+                <textarea id="resumeInstruksiPulang" placeholder="Diet, aktivitas, tanda bahaya yang harus diwaspadai..."></textarea>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div class="form-group">
+                    <label>📅 Tanggal Kontrol</label>
+                    <input type="date" id="resumeTglKontrol">
+                </div>
+                <div class="form-group">
+                    <label>Tempat / Keterangan Kontrol</label>
+                    <input type="text" id="resumeKontrolPulang" placeholder="Cth: Poli Anak, dr. Rina">
+                </div>
+            </div>
+
+            <button type="button" class="btn-primary" style="width: 100%;" onclick="simpanResumePulang()">✓ Simpan Resume Pulang</button>
+        </div>
+    </div>
+
+    <!-- Modal Observasi -->
+    <div id="modalObservasi" class="modal">
+        <div class="modal-content" style="max-width: 520px;">
+            <div class="modal-header">
+                <h2>🌡️ Tambah Observasi / Vital Sign</h2>
+                <button class="close-btn" onclick="closeModal('modalObservasi')">×</button>
+            </div>
+
+            <div class="form-group">
+                <label>No. Bed / Pasien</label>
+                <input type="text" id="observasiPasien" placeholder="No. bed atau nama pasien">
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                <div class="form-group">
+                    <label>Tanggal</label>
+                    <input type="date" id="observasiTanggal">
+                </div>
+                <div class="form-group">
+                    <label>Jam</label>
+                    <input type="time" id="observasiJam">
+                </div>
+            </div>
+
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
+                <div class="form-group">
+                    <label>Tekanan Darah</label>
+                    <input type="text" id="obsTD" placeholder="120/80">
+                </div>
+                <div class="form-group">
+                    <label>Nadi (x/menit)</label>
+                    <input type="text" id="obsNadi" placeholder="88">
+                </div>
+                <div class="form-group">
+                    <label>RR (x/menit)</label>
+                    <input type="text" id="obsRR" placeholder="20">
+                </div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
+                <div class="form-group">
+                    <label>Suhu (°C)</label>
+                    <input type="text" id="obsSuhu" placeholder="36.8">
+                </div>
+                <div class="form-group">
+                    <label>SpO2 (%)</label>
+                    <input type="text" id="obsSpO2" placeholder="98">
+                </div>
+                <div class="form-group">
+                    <label>Kesadaran</label>
+                    <select id="obsKesadaran">
+                        <option value="Compos Mentis">Compos Mentis</option>
+                        <option value="Somnolen">Somnolen</option>
+                        <option value="Apatis">Apatis</option>
+                        <option value="Sopor">Sopor</option>
+                        <option value="Coma">Coma</option>
+                    </select>
+                </div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                <div class="form-group">
+                    <label>Intake Cairan</label>
+                    <input type="text" id="obsIntake" placeholder="Cth: 500ml">
+                </div>
+                <div class="form-group">
+                    <label>Output (urin/drain dll)</label>
+                    <input type="text" id="obsOutput" placeholder="Cth: 300ml">
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Catatan Tambahan</label>
+                <textarea id="obsCatatan" placeholder="Nyeri, keluhan, kondisi khusus lainnya..."></textarea>
+            </div>
+            <div class="form-group">
+                <label>Petugas</label>
+                <input type="text" id="obsPetugas" placeholder="Nama perawat/dokter">
+            </div>
+
+            <button type="button" class="btn-primary" style="width: 100%;" onclick="simpanObservasi()">✓ Simpan Observasi</button>
         </div>
     </div>
 
@@ -1264,6 +1622,12 @@
             const btnTambah = document.getElementById('btnTambahPasien');
             if (btnTambah) btnTambah.style.display = canTambahPasien() ? '' : 'none';
 
+            const cardRanap = document.getElementById('cardInputRanapBaru');
+            if (cardRanap) cardRanap.style.display = canTambahPasien() ? '' : 'none';
+
+            const menuTambahPasien = document.getElementById('menuCardTambahPasien');
+            if (menuTambahPasien) menuTambahPasien.style.display = canTambahPasien() ? '' : 'none';
+
             const menuSettings = document.getElementById('menuCardSettings');
             if (menuSettings) menuSettings.style.display = canManageSettings() ? '' : 'none';
 
@@ -1271,16 +1635,43 @@
             if (menuImportExport) menuImportExport.style.display = canImportExport() ? '' : 'none';
         }
 
+        let storageRef = null;
+
         function initFirebase() {
             try {
                 firebase.initializeApp(firebaseConfig);
                 db = firebase.firestore();
+                storageRef = firebase.storage();
                 firebaseReady = true;
+
+                // 🔌 OFFLINE PERSISTENCE — data tetap bisa diinput walau internet putus,
+                // otomatis sync ke server begitu koneksi kembali. Disimpan di IndexedDB browser.
+                db.enablePersistence({ synchronizeTabs: true }).catch((err) => {
+                    if (err.code === 'failed-precondition') {
+                        // Biasanya karena ada tab lain dari app ini yang sudah terbuka
+                        console.warn('Offline persistence hanya bisa aktif di 1 tab. Tutup tab lain dari app ini.');
+                    } else if (err.code === 'unimplemented') {
+                        console.warn('Browser ini tidak mendukung offline persistence.');
+                    }
+                });
             } catch (err) {
                 console.error('Firebase init error:', err);
                 alert('⚠️ Firebase belum dikonfigurasi dengan benar. Cek firebaseConfig di dalam kode.');
             }
         }
+
+        // ===== INDIKATOR STATUS KONEKSI (online/offline) =====
+        function updateConnectionBanner() {
+            const banner = document.getElementById('offlineBanner');
+            if (!banner) return;
+            if (navigator.onLine) {
+                banner.style.display = 'none';
+            } else {
+                banner.style.display = 'block';
+            }
+        }
+        window.addEventListener('online', updateConnectionBanner);
+        window.addEventListener('offline', updateConnectionBanner);
 
         // ===== PASSWORD GATE =====
         function cekPasswordGate() {
@@ -1308,6 +1699,8 @@
         let dataOperan = [];
         let dataProgressNote = [];
         let dataPemeriksaanPenunjang = [];
+        let dataVisit = [];
+        let dataObservasi = [];
         let dataSettings = {
             namaKlinik: 'Klinik Salsabiluna',
             tagline: 'Sistem Operan Pasien · @dokrifqi',
@@ -1364,7 +1757,7 @@
             saveDebounceTimer = setTimeout(() => {
                 const payload = {
                     dataPasien, dataMonitoring, dataTask, dataOperan,
-                    dataProgressNote, dataPemeriksaanPenunjang, dataSettings,
+                    dataProgressNote, dataPemeriksaanPenunjang, dataSettings, dataVisit, dataObservasi,
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 };
                 db.collection(FIRESTORE_COLLECTION).doc(FIRESTORE_DOC_ID).set(payload, { merge: true })
@@ -1389,6 +1782,8 @@
                         dataOperan = d.dataOperan || [];
                         dataProgressNote = d.dataProgressNote || [];
                         dataPemeriksaanPenunjang = d.dataPemeriksaanPenunjang || [];
+                        dataVisit = d.dataVisit || [];
+                        dataObservasi = d.dataObservasi || [];
                         if (d.dataSettings) dataSettings = d.dataSettings;
                         isSavingFromRemote = false;
 
@@ -1425,6 +1820,10 @@
             if (activeTab && activeTab.id === 'monitoring') loadMonitoring();
             if (activeTab && activeTab.id === 'dpjp') displayPerDPJP();
             if (activeTab && activeTab.id === 'trend') displayTrendDiagnosis();
+            if (activeTab && activeTab.id === 'visit') displayVisit();
+            if (activeTab && activeTab.id === 'observasi') displayObservasi();
+            if (activeTab && activeTab.id === 'rekammedis') displayRekamMedisLengkap();
+            if (activeTab && activeTab.id === 'dpjp') renderDaftarDPJPChips();
         }
 
         // ===== EXPORT EXCEL FUNCTION =====
@@ -1594,6 +1993,7 @@
             const today = new Date();
             document.getElementById('operanTanggal').valueAsDate = today;
             document.getElementById('monitoringTanggal').valueAsDate = today;
+            document.getElementById('ranapTglMasuk').valueAsDate = today;
 
             if (sessionStorage.getItem('operanAuth') === 'ok') {
                 currentRole = sessionStorage.getItem('operanRole');
@@ -1606,6 +2006,7 @@
 
         function bootApp() {
             document.getElementById('loadingOverlay').style.display = 'flex';
+            updateConnectionBanner();
             initFirebase();
 
             if (!firebaseReady) {
@@ -1752,6 +2153,10 @@
             
             if(tabName === 'monitoring') loadMonitoring();
             if(tabName === 'pending') displayTaskPending();
+            if(tabName === 'visit') displayVisit();
+            if(tabName === 'observasi') displayObservasi();
+            if(tabName === 'rekammedis') isiDropdownRekamMedis();
+            if(tabName === 'dpjp') renderDaftarDPJPChips();
         }
 
         // Update Dashboard
@@ -1797,14 +2202,14 @@
             // Card: Daftar Pasien ala progress list
             const listEl = document.getElementById('dashboardPasienList');
             if (listEl) {
-                const statusColor = { stabil: '#4caf50', monitoring: '#ff9800', critical: '#d32f2f' };
-                const statusLabel = { stabil: 'Stabil', monitoring: 'Monitoring', critical: 'Kritis' };
+                const statusColor = { stabil: '#4caf50', monitoring: '#ff9800', critical: '#d32f2f', pulang: '#888' };
+                const statusLabel = { stabil: 'Stabil', monitoring: 'Monitoring', critical: 'Kritis', pulang: 'Pulang' };
                 if (total === 0) {
                     listEl.innerHTML = '<div style="color:#999; font-size:12px;">Belum ada data pasien</div>';
                 } else {
                     listEl.innerHTML = dataPasien.map(p => {
                         const color = statusColor[p.status] || '#999';
-                        const pct = p.status === 'critical' ? 100 : (p.status === 'monitoring' ? 60 : 30);
+                        const pct = p.status === 'critical' ? 100 : (p.status === 'monitoring' ? 60 : (p.status === 'pulang' ? 100 : 30));
                         return `<div style="margin-bottom:10px; cursor:pointer;" onclick="openDetail(${p.id})">
                             <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
                                 <span style="font-size:11.5px; font-weight:600; color:${color};">${p.nama} <span style="color:#999; font-weight:400;">· ${p.noBed}</span></span>
@@ -1843,6 +2248,8 @@
                     <td><span class="task-count ${taskCount > 0 ? 'task-pending' : ''}">${taskCount}</span></td>
                     <td>
                         <button class="btn-sm btn-primary" onclick="openDetail(${p.id})" title="Lihat detail lengkap">Lihat</button>
+                        ${p.status === 'pulang' ? `<button class="btn-sm" onclick="cetakResumeMedis('${p.noBed}')" style="background:#2e7d32; color:white;" title="Cetak Resume Medis">🏠 Resume</button>
+                        <button class="btn-sm" onclick="downloadResumeMedisPDF('${p.noBed}')" style="background:#1565c0; color:white;" title="Download PDF">⬇️ PDF</button>` : ''}
                         ${canEditPasienData() ? `
                         <button class="btn-sm btn-secondary" onclick="openEditDPJPModal(${p.id})" title="Edit DPJP saja">DPJP</button>
                         <button class="btn-sm btn-secondary" onclick="editPasien(${p.id})" title="Edit semua data pasien">Edit</button>` : ''}
@@ -1874,6 +2281,9 @@
                 trendHTML += `<option value="${p.noBed}">${p.noBed} - ${p.nama}</option>`;
             });
             document.getElementById('selectPasienTrend').innerHTML = trendHTML;
+
+            // Update dropdown selectPasienRekamMedis
+            isiDropdownRekamMedis();
         }
 
         function filterPasien() {
@@ -1901,6 +2311,8 @@
                     <td><span class="task-count ${taskCount > 0 ? 'task-pending' : ''}">${taskCount}</span></td>
                     <td>
                         <button class="btn-sm btn-primary" onclick="openDetail(${p.id})">Lihat</button>
+                        ${p.status === 'pulang' ? `<button class="btn-sm" onclick="cetakResumeMedis('${p.noBed}')" style="background:#2e7d32; color:white;">🏠 Resume</button>
+                        <button class="btn-sm" onclick="downloadResumeMedisPDF('${p.noBed}')" style="background:#1565c0; color:white;">⬇️ PDF</button>` : ''}
                         ${canEditPasienData() ? `
                         <button class="btn-sm btn-secondary" onclick="openEditDPJPModal(${p.id})">DPJP</button>
                         <button class="btn-sm btn-secondary" onclick="editPasien(${p.id})">Edit</button>` : ''}
@@ -1996,6 +2408,8 @@
                 <div style="margin-bottom: 20px;">
                     <h3 style="margin-bottom: 15px;">⚙️ MANAGE PASIEN</h3>
                     <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                        <button class="btn-sm btn-primary" onclick="openModalVisit('${pasien.noBed}')" style="background:#C85A54;">🩺 Visit Pasien</button>
+                        <button class="btn-sm btn-primary" onclick="openModalObservasi('${pasien.noBed}')" style="background:#0288d1;">🌡️ Tambah Observasi</button>
                         <button class="btn-sm btn-primary" onclick="openModalMonitoring('${pasien.noBed}')">📊 Update Monitoring</button>
                         <button class="btn-sm btn-primary" onclick="openModalTambahPenunjang('${pasien.noBed}')">🔬 Tambah Hasil Penunjang</button>
                         <button class="btn-sm btn-primary" onclick="openModalTambahProgressNote('${pasien.noBed}')">📝 Tambah Progress Note</button>
@@ -2006,6 +2420,10 @@
                         <button class="btn-secondary" onclick="editPasien(${pasien.id})">✏️ Edit Data</button>` : ''}
                         <button class="btn-secondary" onclick="printMedicalRecord('${pasien.noBed}')">🖨️ Cetak Medical Record</button>
                         <button class="btn-secondary" onclick="exportToPDF('${pasien.noBed}')">📄 Export ke PDF</button>
+                        ${canEditPasienData() ? `<button class="btn-sm btn-secondary" onclick="openModalResumePulang('${pasien.noBed}')" style="background:#ffa000; color:white;">✏️ Isi Resume Pulang</button>` : ''}
+                        <button class="btn-secondary" onclick="cetakResumeMedis('${pasien.noBed}')" style="background:#2e7d32; color:white;">🏠 Cetak Resume Medis (Pulang)</button>
+                        <button class="btn-secondary" onclick="downloadResumeMedisPDF('${pasien.noBed}')" style="background:#1565c0; color:white;">⬇️ Download Resume (PDF)</button>
+                        <button class="btn-secondary" onclick="closeModal('modalDetail'); switchTab('rekammedis'); setTimeout(()=>{ isiDropdownRekamMedis(); document.getElementById('selectPasienRekamMedis').value='${pasien.noBed}'; displayRekamMedisLengkap(); }, 100);" style="background:#3f51b5; color:white;">📚 Lihat Rekam Medis Lengkap</button>
                     </div>
                 </div>
 
@@ -2018,6 +2436,53 @@
             document.getElementById('detailTitle').textContent = `Detail Pasien: ${pasien.nama} (${pasien.noBed})`;
             document.getElementById('detailContent').innerHTML = content;
             document.getElementById('modalDetail').style.display = 'block';
+        }
+
+        // ============================================================
+        // ➕ TAMBAH DPJP BARU langsung dari tab Per DPJP
+        // ============================================================
+        function tambahDPJPKeDaftar() {
+            const input = document.getElementById('dpjpBaruNamaInput');
+            const nama = input.value.trim();
+            if (!nama) return;
+
+            if (dataSettings.daftarDPJP.some(d => d.toLowerCase() === nama.toLowerCase())) {
+                alert(`⚠️ "${nama}" sudah ada di daftar DPJP.`);
+                input.value = '';
+                return;
+            }
+
+            dataSettings.daftarDPJP.push(nama);
+            saveAllData();
+            applySettings(); // refresh datalist autocomplete & form Setting
+            renderDaftarDPJPChips();
+            displayPasienList(); // refresh dropdown selectDPJP juga
+
+            input.value = '';
+            input.focus();
+        }
+
+        function hapusDPJPDariDaftar(nama) {
+            if (!confirm(`Hapus "${nama}" dari daftar DPJP?\n\nCatatan: pasien yang sudah punya DPJP ini tidak akan berubah, ini hanya menghapus dari daftar saran.`)) return;
+            dataSettings.daftarDPJP = dataSettings.daftarDPJP.filter(d => d !== nama);
+            saveAllData();
+            applySettings();
+            renderDaftarDPJPChips();
+        }
+
+        function renderDaftarDPJPChips() {
+            const container = document.getElementById('daftarDPJPChips');
+            if (!container) return;
+            if (!dataSettings.daftarDPJP || dataSettings.daftarDPJP.length === 0) {
+                container.innerHTML = '<span style="font-size:11.5px; color:#999;">Belum ada DPJP di daftar</span>';
+                return;
+            }
+            container.innerHTML = dataSettings.daftarDPJP.map(nama => `
+                <span style="background:#ede4fb; color:#5b2d91; font-size:11.5px; font-weight:600; padding:5px 8px 5px 10px; border-radius:14px; display:inline-flex; align-items:center; gap:6px;">
+                    ${nama}
+                    ${canManageSettings() ? `<button type="button" onclick="hapusDPJPDariDaftar('${nama.replace(/'/g, "\\'")}')" style="background:none; border:none; color:#5b2d91; font-weight:700; cursor:pointer; padding:0; font-size:13px; line-height:1;">×</button>` : ''}
+                </span>
+            `).join('');
         }
 
         // Display Per DPJP
@@ -2117,6 +2582,79 @@
 
         function closeModal(modalId) {
             document.getElementById(modalId).style.display = 'none';
+        }
+
+        // ============================================================
+        // 🛏️ INPUT PASIEN RANAP BARU (tabel cepat, field wajib minimal)
+        // ============================================================
+        function simpanRanapBaru() {
+            if (!canTambahPasien()) { alert('⚠️ Hanya role Dokter yang bisa menambah pasien baru.'); return; }
+
+            const noBed = document.getElementById('ranapNoBed').value.trim().toUpperCase();
+            const nama = document.getElementById('ranapNama').value.trim();
+            const umur = document.getElementById('ranapUmur').value.trim();
+            const noRM = document.getElementById('ranapNoRM').value.trim();
+            const tglMasuk = document.getElementById('ranapTglMasuk').value;
+            const dpjpRaw = document.getElementById('ranapDPJP').value.trim();
+            const status = document.getElementById('ranapStatus').value;
+            const diagnosisAwal = document.getElementById('ranapDiagnosisAwal').value.trim();
+
+            // Validasi field wajib — kasih tahu persis field mana yang kosong
+            const kosong = [];
+            if (!noBed) kosong.push('No. Bed');
+            if (!nama) kosong.push('Nama Pasien');
+            if (!tglMasuk) kosong.push('Tgl Masuk');
+            if (!dpjpRaw) kosong.push('DPJP');
+            if (!status) kosong.push('Status');
+
+            if (kosong.length > 0) {
+                alert('⚠️ Field berikut wajib diisi:\n- ' + kosong.join('\n- '));
+                return;
+            }
+
+            // Cek No. Bed sudah dipakai pasien lain atau belum
+            if (dataPasien.some(p => p.noBed === noBed)) {
+                alert(`⚠️ No. Bed "${noBed}" sudah dipakai pasien lain. Gunakan No. Bed berbeda atau edit pasien yang sudah ada.`);
+                return;
+            }
+
+            const dpjpList = dpjpRaw.split(',').map(s => s.trim()).filter(s => s.length > 0);
+
+            const newId = dataPasien.length > 0 ? Math.max(...dataPasien.map(p => p.id)) + 1 : 1;
+            const pasien = {
+                id: newId,
+                noBed: noBed,
+                nama: nama,
+                umur: umur || '-',
+                noRM: noRM || '',
+                dpjp: dpjpList,
+                diagnosisAwal: diagnosisAwal || '',
+                diagnosisHariIni: diagnosisAwal || '',
+                keluhan: '',
+                terapi: '',
+                rencana: '',
+                status: status,
+                tglMasuk: tglMasuk,
+                catatan: ''
+            };
+
+            dataPasien.push(pasien);
+            saveAllData();
+            displayPasienList();
+            updateDashboard();
+
+            // Kosongkan lagi baris input supaya siap input pasien berikutnya
+            document.getElementById('ranapNoBed').value = '';
+            document.getElementById('ranapNama').value = '';
+            document.getElementById('ranapUmur').value = '';
+            document.getElementById('ranapNoRM').value = '';
+            document.getElementById('ranapDPJP').value = '';
+            document.getElementById('ranapStatus').value = 'stabil';
+            document.getElementById('ranapDiagnosisAwal').value = '';
+            document.getElementById('ranapTglMasuk').valueAsDate = new Date();
+            document.getElementById('ranapNoBed').focus();
+
+            alert(`✅ Pasien "${nama}" (${noBed}) berhasil ditambahkan!\n\nLengkapi diagnosis/keluhan/terapi/rencana lewat tombol Edit kapan saja.`);
         }
 
         function tambahPasien(e) {
@@ -2488,6 +3026,393 @@
             printMedicalRecord(noBed);
         }
 
+        // ============================================================
+        // 🏠 RESUME MEDIS (RINGKASAN PULANG) — siap print/download saat pasien pulang
+        // ============================================================
+        function cetakResumeMedis(noBed) {
+            const pasien = dataPasien.find(p => p.noBed === noBed || p.nama === noBed);
+            if(!pasien) return;
+
+            const belumPulang = pasien.status !== 'pulang';
+            if (belumPulang) {
+                const lanjut = confirm(
+                    `⚠️ Pasien "${pasien.nama}" (${noBed}) belum ditandai PULANG lewat fitur Visit.\n\n` +
+                    `Resume tetap bisa dicetak sebagai draft, tapi bagian "Kondisi Pulang" dan ` +
+                    `"Instruksi Pulang" akan kosong.\n\nLanjutkan cetak draft?`
+                );
+                if (!lanjut) return;
+            }
+
+            const penunjang = dataPemeriksaanPenunjang.filter(p => p.pasien === noBed)
+                .sort((a,b) => new Date(b.tanggal) - new Date(a.tanggal));
+            const visits = dataVisit.filter(v => v.pasien === noBed)
+                .sort((a,b) => new Date(a.tanggal + ' ' + a.jam) - new Date(b.tanggal + ' ' + b.jam));
+            const progressNotes = dataProgressNote.filter(p => p.pasien === noBed)
+                .sort((a,b) => new Date(a.tanggal + ' ' + a.jam) - new Date(b.tanggal + ' ' + b.jam));
+
+            const tglMasuk = pasien.tglMasuk || '-';
+            const tglPulang = pasien.tglPulang || '(belum ditentukan)';
+            const lamaRawat = pasien.tglMasuk ? hariMasuk(pasien.tglMasuk) : '-';
+
+            let printContent = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Resume Medis - ${pasien.nama}</title>
+                <style>
+                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #222; font-size: 13px; }
+                    .header { text-align: center; margin-bottom: 18px; border-bottom: 3px solid #8B3A62; padding-bottom: 10px; }
+                    .header h1 { margin: 0; font-size: 19px; color: #8B3A62; }
+                    .header p { margin: 4px 0; font-size: 11.5px; color: #555; }
+                    .section { margin-bottom: 16px; }
+                    .section-title { background: #f3e5f5; color: #5b2d91; padding: 7px 10px; font-weight: bold; border-left: 4px solid #8B3A62; font-size: 12.5px; }
+                    .content { padding: 10px; margin-bottom: 4px; border: 1px solid #ddd; border-top: none; }
+                    table { width: 100%; border-collapse: collapse; margin-bottom: 6px; }
+                    th, td { border: 1px solid #ddd; padding: 6px 8px; text-align: left; font-size: 12px; }
+                    th { background: #f8f8f8; font-weight: bold; }
+                    .highlight-box { background: #fff8e1; border: 1px solid #ffca28; border-radius: 6px; padding: 10px; margin-bottom: 10px; }
+                    .signature { margin-top: 40px; display: flex; justify-content: flex-end; }
+                    .signature-box { text-align: center; width: 220px; }
+                    .signature-line { margin-top: 60px; border-top: 1px solid #333; padding-top: 4px; }
+                    @media print {
+                        body { margin: 0; padding: 10mm; }
+                        .no-print { display: none; }
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <h1>🏠 RESUME MEDIS (RINGKASAN PULANG PASIEN)</h1>
+                    <p>${dataSettings.namaKlinik || 'Klinik'} · ${dataSettings.tagline || ''}</p>
+                </div>
+
+                <div class="section">
+                    <div class="section-title">📋 IDENTITAS PASIEN</div>
+                    <div class="content">
+                        <table>
+                            <tr><td style="width:25%;"><strong>Nama Pasien</strong></td><td style="width:25%;">${pasien.nama}</td><td style="width:25%;"><strong>No. RM</strong></td><td>${pasien.noRM || '-'}</td></tr>
+                            <tr><td><strong>Umur</strong></td><td>${pasien.umur}</td><td><strong>No. Bed</strong></td><td>${pasien.noBed}</td></tr>
+                            <tr><td><strong>DPJP</strong></td><td colspan="3">${dpjpDisplay(pasien)}</td></tr>
+                            <tr><td><strong>Tanggal Masuk</strong></td><td>${tglMasuk}</td><td><strong>Tanggal Pulang</strong></td><td>${tglPulang}</td></tr>
+                            <tr><td><strong>Lama Dirawat</strong></td><td colspan="3">${lamaRawat !== '-' ? `${lamaRawat} hari` : '-'}</td></tr>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-title">🏥 DIAGNOSIS</div>
+                    <div class="content">
+                        <strong>Diagnosis Masuk:</strong><br>${pasien.diagnosisAwal || '-'}<br><br>
+                        <strong>Diagnosis Akhir / Saat Pulang:</strong><br>${pasien.diagnosisHariIni || pasien.diagnosisAwal || '-'}
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-title">💊 RINGKASAN TERAPI SELAMA RAWAT INAP</div>
+                    <div class="content">
+                        ${pasien.terapi || '-'}
+                    </div>
+                </div>
+
+                ${penunjang.length > 0 ? `
+                <div class="section">
+                    <div class="section-title">🔬 HASIL PEMERIKSAAN PENUNJANG PENTING</div>
+                    <div class="content">
+                        <table>
+                            <thead><tr><th>Tanggal</th><th>Jenis</th><th>Parameter</th><th>Hasil</th></tr></thead>
+                            <tbody>
+                                ${penunjang.slice(0, 10).map(p => `<tr>
+                                    <td>${p.tanggal}</td><td>${p.jenis}</td><td>${p.nama}</td><td>${p.hasil}</td>
+                                </tr>`).join('')}
+                            </tbody>
+                        </table>
+                        ${penunjang.length > 10 ? `<p style="font-size:11px; color:#999;">+ ${penunjang.length - 10} pemeriksaan lainnya (lihat rekam medis lengkap)</p>` : ''}
+                    </div>
+                </div>
+                ` : ''}
+
+                ${visits.length > 0 ? `
+                <div class="section">
+                    <div class="section-title">🩺 RINGKASAN PERJALANAN KLINIS (VISIT)</div>
+                    <div class="content">
+                        ${visits.map(v => `<div style="margin-bottom:8px; padding-bottom:8px; border-bottom:1px dashed #ddd;">
+                            <strong>${v.tanggal} ${v.jam}</strong> (${v.dokter || '-'})${v.hasil === 'pulang' ? ' — <strong>PULANG</strong>' : ''}<br>
+                            ${v.temuan || '-'}
+                        </div>`).join('')}
+                    </div>
+                </div>
+                ` : (progressNotes.length > 0 ? `
+                <div class="section">
+                    <div class="section-title">📝 RINGKASAN PROGRESS NOTE</div>
+                    <div class="content">
+                        ${progressNotes.map(n => `<div style="margin-bottom:8px; padding-bottom:8px; border-bottom:1px dashed #ddd;">
+                            <strong>${n.tanggal} ${n.jam}</strong> (${n.writer || '-'})<br>${n.status || '-'}
+                        </div>`).join('')}
+                    </div>
+                </div>
+                ` : '')}
+
+                <div class="section">
+                    <div class="section-title">✅ KONDISI SAAT PULANG</div>
+                    <div class="content">
+                        ${pasien.kondisiPulang || '<span style="color:#999;">(belum diisi — lengkapi lewat "Isi Resume Pulang" atau fitur Visit)</span>'}
+                    </div>
+                </div>
+
+                <div class="highlight-box">
+                    <strong>💊 OBAT PULANG</strong><br><br>
+                    ${pasien.obatPulang ? pasien.obatPulang.replace(/\n/g, '<br>') : (pasien.instruksiPulang ? pasien.instruksiPulang.replace(/\n/g, '<br>') : '<span style="color:#999;">(belum diisi)</span>')}
+                </div>
+
+                ${pasien.instruksiPulang && pasien.obatPulang ? `
+                <div class="section">
+                    <div class="section-title">📋 INSTRUKSI LAIN (Diet, Aktivitas, Tanda Bahaya)</div>
+                    <div class="content">${pasien.instruksiPulang.replace(/\n/g, '<br>')}</div>
+                </div>` : ''}
+
+                <div class="section">
+                    <div class="section-title">📅 RENCANA KONTROL</div>
+                    <div class="content">
+                        ${pasien.tglKontrol ? `<strong>Tanggal:</strong> ${pasien.tglKontrol}<br>` : ''}
+                        ${pasien.kontrolPulang || (!pasien.tglKontrol ? '<span style="color:#999;">(belum diisi)</span>' : '')}
+                    </div>
+                </div>
+
+                ${pasien.catatan ? `
+                <div class="section">
+                    <div class="section-title">📝 CATATAN TAMBAHAN (ALERGI, KOMORBID, DLL)</div>
+                    <div class="content">${pasien.catatan}</div>
+                </div>
+                ` : ''}
+
+                <div class="signature">
+                    <div class="signature-box">
+                        <div>${tglPulang !== '(belum ditentukan)' ? tglPulang : new Date().toLocaleDateString('id-ID')}</div>
+                        <div class="signature-line">
+                            ${dpjpDisplay(pasien) || '( _______________ )'}<br>
+                            <span style="font-size:11px; color:#777;">DPJP</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-top: 20px; text-align: center; font-size: 10.5px; color: #999;">
+                    <p>Dicetak pada: ${new Date().toLocaleString('id-ID')} — ${dataSettings.namaKlinik || ''}</p>
+                </div>
+            </body>
+            </html>
+            `;
+
+            const printWindow = window.open('', '', 'height=800,width=900');
+            printWindow.document.write(printContent);
+            printWindow.document.close();
+            setTimeout(() => printWindow.print(), 250);
+        }
+
+        // ============================================================
+        // ⬇️ DOWNLOAD RESUME MEDIS SEBAGAI FILE PDF (langsung download,
+        // tidak perlu lewat dialog print browser)
+        // ============================================================
+        function downloadResumeMedisPDF(noBed) {
+            const pasien = dataPasien.find(p => p.noBed === noBed || p.nama === noBed);
+            if (!pasien) return;
+
+            if (typeof window.jspdf === 'undefined') {
+                alert('⚠️ Library PDF belum termuat. Cek koneksi internet Anda lalu coba lagi.');
+                return;
+            }
+
+            const belumPulang = pasien.status !== 'pulang';
+            if (belumPulang) {
+                const lanjut = confirm(
+                    `⚠️ Pasien "${pasien.nama}" (${noBed}) belum ditandai PULANG.\n\n` +
+                    `PDF tetap bisa didownload sebagai draft, tapi bagian obat pulang & kontrol akan kosong.\n\nLanjutkan?`
+                );
+                if (!lanjut) return;
+            }
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ unit: 'mm', format: 'a4' });
+            const pageWidth = doc.internal.pageSize.getWidth();
+            const marginLeft = 15;
+            const marginRight = 15;
+            const maxWidth = pageWidth - marginLeft - marginRight;
+            let y = 18;
+
+            function checkPageBreak(neededSpace = 10) {
+                if (y + neededSpace > 280) {
+                    doc.addPage();
+                    y = 18;
+                }
+            }
+
+            function addSectionTitle(title) {
+                checkPageBreak(12);
+                doc.setFillColor(243, 229, 245);
+                doc.rect(marginLeft, y - 4, maxWidth, 7, 'F');
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(10.5);
+                doc.setTextColor(91, 45, 145);
+                doc.text(title, marginLeft + 2, y + 1);
+                doc.setTextColor(30, 30, 30);
+                y += 8;
+            }
+
+            function addLabelValue(label, value) {
+                const text = `${label}: ${value || '-'}`;
+                const lines = doc.splitTextToSize(text, maxWidth);
+                checkPageBreak(lines.length * 5 + 2);
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(9.5);
+                doc.text(lines, marginLeft, y);
+                y += lines.length * 5 + 2;
+            }
+
+            function addParagraph(text, opts = {}) {
+                const lines = doc.splitTextToSize(text || '-', maxWidth);
+                checkPageBreak(lines.length * 5 + 2);
+                doc.setFont('helvetica', opts.bold ? 'bold' : 'normal');
+                doc.setFontSize(opts.size || 9.5);
+                doc.text(lines, marginLeft, y);
+                y += lines.length * 5 + 2;
+            }
+
+            // Header
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(15);
+            doc.setTextColor(139, 58, 98);
+            doc.text('RESUME MEDIS (RINGKASAN PULANG PASIEN)', pageWidth / 2, y, { align: 'center' });
+            y += 6;
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(9.5);
+            doc.setTextColor(90, 90, 90);
+            doc.text(`${dataSettings.namaKlinik || 'Klinik'} · ${dataSettings.tagline || ''}`, pageWidth / 2, y, { align: 'center' });
+            y += 4;
+            doc.setDrawColor(139, 58, 98);
+            doc.setLineWidth(0.6);
+            doc.line(marginLeft, y, pageWidth - marginRight, y);
+            y += 8;
+            doc.setTextColor(30, 30, 30);
+
+            // Identitas
+            addSectionTitle('IDENTITAS PASIEN');
+            addLabelValue('Nama Pasien', pasien.nama);
+            addLabelValue('No. RM', pasien.noRM);
+            addLabelValue('Umur', pasien.umur);
+            addLabelValue('No. Bed', pasien.noBed);
+            addLabelValue('DPJP', dpjpDisplay(pasien));
+            addLabelValue('Tanggal Masuk', pasien.tglMasuk);
+            addLabelValue('Tanggal Pulang', pasien.tglPulang || '(belum ditentukan)');
+            const lamaRawat = pasien.tglMasuk ? hariMasuk(pasien.tglMasuk) : null;
+            if (lamaRawat) addLabelValue('Lama Dirawat', `${lamaRawat} hari`);
+            y += 2;
+
+            // Diagnosis
+            addSectionTitle('DIAGNOSIS');
+            addParagraph('Diagnosis Masuk:', { bold: true });
+            addParagraph(pasien.diagnosisAwal);
+            addParagraph('Diagnosis Akhir / Saat Pulang:', { bold: true });
+            addParagraph(pasien.diagnosisHariIni || pasien.diagnosisAwal);
+            y += 2;
+
+            // Terapi
+            addSectionTitle('RINGKASAN TERAPI SELAMA RAWAT INAP');
+            addParagraph(pasien.terapi);
+            y += 2;
+
+            // Hasil penunjang penting (maks 8 biar PDF tidak kepanjangan)
+            const penunjang = dataPemeriksaanPenunjang.filter(p => p.pasien === noBed)
+                .sort((a,b) => new Date(b.tanggal) - new Date(a.tanggal));
+            if (penunjang.length > 0) {
+                addSectionTitle('HASIL PEMERIKSAAN PENUNJANG PENTING');
+                penunjang.slice(0, 8).forEach(p => {
+                    addParagraph(`• ${p.tanggal} | ${p.jenis} | ${p.nama}: ${p.hasil}`);
+                });
+                if (penunjang.length > 8) {
+                    addParagraph(`+ ${penunjang.length - 8} pemeriksaan lainnya (lihat rekam medis lengkap)`);
+                }
+                y += 2;
+            }
+
+            // Kondisi pulang
+            addSectionTitle('KONDISI SAAT PULANG');
+            addParagraph(pasien.kondisiPulang);
+            y += 2;
+
+            // Obat pulang (highlight box)
+            checkPageBreak(20);
+            doc.setFillColor(255, 248, 225);
+            doc.setDrawColor(255, 202, 40);
+            const obatText = pasien.obatPulang || pasien.instruksiPulang || '-';
+            const obatLines = doc.splitTextToSize(obatText, maxWidth - 6);
+            const boxHeight = obatLines.length * 5 + 12;
+            checkPageBreak(boxHeight);
+            doc.roundedRect(marginLeft, y, maxWidth, boxHeight, 2, 2, 'FD');
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(10);
+            doc.setTextColor(180, 130, 0);
+            doc.text('💊 OBAT PULANG', marginLeft + 3, y + 6);
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(9.5);
+            doc.setTextColor(30, 30, 30);
+            doc.text(obatLines, marginLeft + 3, y + 12);
+            y += boxHeight + 5;
+
+            // Instruksi lain (kalau beda dari obat pulang)
+            if (pasien.instruksiPulang && pasien.obatPulang) {
+                addSectionTitle('INSTRUKSI LAIN (Diet, Aktivitas, Tanda Bahaya)');
+                addParagraph(pasien.instruksiPulang);
+                y += 2;
+            }
+
+            // Rencana kontrol
+            addSectionTitle('RENCANA KONTROL');
+            if (pasien.tglKontrol) addLabelValue('Tanggal Kontrol', pasien.tglKontrol);
+            addParagraph(pasien.kontrolPulang || (pasien.tglKontrol ? '' : '(belum diisi)'));
+            y += 2;
+
+            // Catatan tambahan
+            if (pasien.catatan) {
+                addSectionTitle('CATATAN TAMBAHAN (ALERGI, KOMORBID, DLL)');
+                addParagraph(pasien.catatan);
+                y += 2;
+            }
+
+            // Tanda tangan
+            checkPageBreak(35);
+            y += 10;
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(9.5);
+            const tglTtd = pasien.tglPulang || new Date().toLocaleDateString('id-ID');
+            doc.text(tglTtd, pageWidth - marginRight - 45, y, { align: 'center' });
+            y += 25;
+            doc.setDrawColor(50, 50, 50);
+            doc.line(pageWidth - marginRight - 70, y, pageWidth - marginRight - 20, y);
+            y += 4;
+            doc.setFont('helvetica', 'bold');
+            doc.text(dpjpDisplay(pasien) || '( _______________ )', pageWidth - marginRight - 45, y, { align: 'center' });
+            y += 4;
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(8);
+            doc.setTextColor(120, 120, 120);
+            doc.text('DPJP', pageWidth - marginRight - 45, y, { align: 'center' });
+
+            // Footer tiap halaman
+            const totalPages = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= totalPages; i++) {
+                doc.setPage(i);
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(7.5);
+                doc.setTextColor(150, 150, 150);
+                doc.text(
+                    `Dicetak: ${new Date().toLocaleString('id-ID')} — ${dataSettings.namaKlinik || ''} — Hal ${i}/${totalPages}`,
+                    pageWidth / 2, 292, { align: 'center' }
+                );
+            }
+
+            const fileName = `Resume-Medis-${pasien.nama.replace(/\s+/g, '_')}-${noBed}.pdf`;
+            doc.save(fileName);
+        }
+
         // Assign Task Update Diagnosis
         function assignTaskUpdateDiagnosis(noBed) {
             const pasien = dataPasien.find(p => p.noBed === noBed);
@@ -2651,29 +3576,106 @@
             document.getElementById('penunjangHasil').value = '';
             document.getElementById('penunjangReferensi').value = '';
             document.getElementById('penunjangCatatan').value = '';
+            document.getElementById('penunjangFoto').value = '';
+            document.getElementById('penunjangFotoPreview').innerHTML = '';
         }
+
+        // Preview foto sebelum upload
+        document.addEventListener('DOMContentLoaded', () => {
+            const fotoInput = document.getElementById('penunjangFoto');
+            if (fotoInput) {
+                fotoInput.addEventListener('change', (e) => {
+                    const file = e.target.files[0];
+                    const preview = document.getElementById('penunjangFotoPreview');
+                    if (!file) { preview.innerHTML = ''; return; }
+                    const reader = new FileReader();
+                    reader.onload = (ev) => {
+                        preview.innerHTML = `<img src="${ev.target.result}" style="max-width:100%; max-height:180px; border-radius:8px; border:1px solid #ddd;">`;
+                    };
+                    reader.readAsDataURL(file);
+                });
+            }
+        });
 
         function tambahPenunjang(e) {
             e.preventDefault();
-            const newId = dataPemeriksaanPenunjang.length > 0 ? Math.max(...dataPemeriksaanPenunjang.map(p => p.id)) + 1 : 1;
-            const penunjang = {
-                id: newId,
-                pasien: document.getElementById('penunjangPasien').value.toUpperCase(),
+
+            const fotoFile = document.getElementById('penunjangFoto').files[0];
+            const btnSimpan = document.getElementById('btnSimpanPenunjang');
+            const pasienNoBed = document.getElementById('penunjangPasien').value.toUpperCase();
+
+            const dataBaru = {
+                id: dataPemeriksaanPenunjang.length > 0 ? Math.max(...dataPemeriksaanPenunjang.map(p => p.id)) + 1 : 1,
+                pasien: pasienNoBed,
                 tanggal: document.getElementById('penunjangTanggal').value,
                 jenis: document.getElementById('penunjangJenis').value,
                 nama: document.getElementById('penunjangNama').value,
                 hasil: document.getElementById('penunjangHasil').value,
                 referensi: document.getElementById('penunjangReferensi').value,
                 catatan: document.getElementById('penunjangCatatan').value,
+                fotoUrl: '',
                 timestamp: new Date().toLocaleString('id-ID')
             };
 
-            dataPemeriksaanPenunjang.push(penunjang);
-            saveAllData();
-            
-            closeModal('modalPenunjang');
-            displayPenunjang();
-            alert('✓ Hasil pemeriksaan berhasil disimpan!');
+            // Kalau tidak ada foto, langsung simpan
+            if (!fotoFile) {
+                dataPemeriksaanPenunjang.push(dataBaru);
+                saveAllData();
+                closeModal('modalPenunjang');
+                displayPenunjang();
+                alert('✓ Hasil pemeriksaan berhasil disimpan!');
+                return;
+            }
+
+            // Kalau ada foto, upload dulu ke Firebase Storage
+            if (!storageRef) {
+                alert('⚠️ Firebase Storage belum siap. Foto tidak diupload, tapi data lain tetap tersimpan.');
+                dataPemeriksaanPenunjang.push(dataBaru);
+                saveAllData();
+                closeModal('modalPenunjang');
+                displayPenunjang();
+                return;
+            }
+
+            btnSimpan.disabled = true;
+            btnSimpan.textContent = '⏳ Mengupload foto...';
+
+            const ext = fotoFile.name.split('.').pop();
+            const path = `penunjang/${pasienNoBed}/${Date.now()}.${ext}`;
+            const ref = storageRef.ref().child(path);
+
+            ref.put(fotoFile).then((snapshot) => {
+                return snapshot.ref.getDownloadURL();
+            }).then((url) => {
+                dataBaru.fotoUrl = url;
+                dataPemeriksaanPenunjang.push(dataBaru);
+                saveAllData();
+
+                btnSimpan.disabled = false;
+                btnSimpan.textContent = '✓ Simpan Hasil Pemeriksaan';
+                closeModal('modalPenunjang');
+                displayPenunjang();
+                alert('✓ Hasil pemeriksaan & foto berhasil disimpan!');
+            }).catch((err) => {
+                console.error('Upload foto gagal:', err);
+                btnSimpan.disabled = false;
+                btnSimpan.textContent = '✓ Simpan Hasil Pemeriksaan';
+
+                // Foto gagal upload, tapi tetap simpan data lainnya biar tidak hilang
+                dataPemeriksaanPenunjang.push(dataBaru);
+                saveAllData();
+                closeModal('modalPenunjang');
+                displayPenunjang();
+                alert('⚠️ Foto gagal diupload (cek koneksi/Storage Rules), tapi data pemeriksaan tetap tersimpan.');
+            });
+        }
+
+        // Helper: HTML thumbnail foto (dipakai di displayPenunjang & filterPenunjang)
+        function fotoThumbnailHTML(item) {
+            if (!item.fotoUrl) return '';
+            return `<div style="margin-top:8px;">
+                <img src="${item.fotoUrl}" onclick="window.open('${item.fotoUrl}', '_blank')" style="max-width:140px; max-height:140px; border-radius:6px; border:1px solid #ccc; cursor:pointer; object-fit:cover;" title="Klik untuk lihat ukuran penuh">
+            </div>`;
         }
 
         function displayPenunjang() {
@@ -2707,6 +3709,7 @@
                             <div><strong>📈 Referensi:</strong> ${item.referensi || '-'}</div>
                         </div>
                         ${item.catatan ? `<div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #ddd;"><strong>💡 Catatan:</strong> ${item.catatan}</div>` : ''}
+                        ${fotoThumbnailHTML(item)}
                     </div>`;
                 });
                 
@@ -2746,6 +3749,7 @@
                         <div><strong>📅 ${item.tanggal}</strong> | 🔬 ${item.jenis} | 📌 ${item.nama}</div>
                         <div style="margin-top: 8px;">📊 Hasil: <strong>${item.hasil}</strong></div>
                         ${item.catatan ? `<div style="margin-top: 5px; font-size: 13px; color: #666;">💡 ${item.catatan}</div>` : ''}
+                        ${fotoThumbnailHTML(item)}
                     </div>`;
                 });
                 html += `</div></div>`;
@@ -2891,6 +3895,399 @@
             document.getElementById('progressNoteContent').innerHTML = html;
         }
 
+        // ============================================================
+        // 🩺 FITUR VISIT — kunjungan dokter, bisa tambah task lanjutan
+        // atau menandai pasien PULANG
+        // ============================================================
+        let visitTaskList = []; // {task, prioritas, pic} sementara saat modal terbuka
+
+        function toggleVisitHasil() {
+            const pulang = document.getElementById('radioVisitPulang').checked;
+            document.getElementById('sectionVisitTask').style.display = pulang ? 'none' : 'block';
+            document.getElementById('sectionVisitPulang').style.display = pulang ? 'block' : 'none';
+        }
+
+        function renderVisitTaskChips() {
+            const container = document.getElementById('visitTaskListContainer');
+            if (!container) return;
+            if (visitTaskList.length === 0) {
+                container.innerHTML = '';
+                return;
+            }
+            container.innerHTML = visitTaskList.map((t, idx) => `
+                <div style="display:flex; justify-content:space-between; align-items:center; background:#f0e8fd; padding:6px 10px; border-radius:8px; margin-bottom:5px; font-size:12px;">
+                    <span><strong>${t.prioritas === 'urgent' ? '🔴' : '⚪'}</strong> ${t.task} ${t.pic ? `<span style="color:#999;">· PIC: ${t.pic}</span>` : ''}</span>
+                    <button type="button" onclick="hapusVisitTaskChip(${idx})" style="background:none; border:none; color:#5b2d91; font-weight:700; cursor:pointer; font-size:14px;">×</button>
+                </div>
+            `).join('');
+        }
+
+        function tambahVisitTaskChip() {
+            const taskInput = document.getElementById('visitTaskInput');
+            const task = taskInput.value.trim();
+            if (!task) return;
+            visitTaskList.push({
+                task: task,
+                prioritas: document.getElementById('visitTaskPrioritas').value,
+                pic: document.getElementById('visitTaskPIC').value.trim()
+            });
+            taskInput.value = '';
+            document.getElementById('visitTaskPIC').value = '';
+            renderVisitTaskChips();
+            taskInput.focus();
+        }
+
+        function hapusVisitTaskChip(idx) {
+            visitTaskList.splice(idx, 1);
+            renderVisitTaskChips();
+        }
+
+        function openModalVisit(noBed = '') {
+            document.getElementById('modalVisit').style.display = 'block';
+            document.getElementById('visitPasien').value = noBed ? noBed.toUpperCase() : '';
+            document.getElementById('visitTanggal').valueAsDate = new Date();
+            document.getElementById('visitJam').value = new Date().toTimeString().slice(0,5);
+            document.getElementById('visitDokter').value = dataSettings.namaDokter || '';
+            document.getElementById('visitTemuan').value = '';
+            document.getElementById('radioVisitLanjut').checked = true;
+
+            // Perawat tidak boleh menandai pasien pulang (keputusan klinis dokter)
+            const labelPulang = document.getElementById('labelVisitPulang');
+            if (labelPulang) labelPulang.style.display = canEditPasienData() ? 'flex' : 'none';
+
+            visitTaskList = [];
+            renderVisitTaskChips();
+            document.getElementById('visitTaskInput').value = '';
+            document.getElementById('visitTaskPIC').value = '';
+            document.getElementById('visitKondisiPulang').value = '';
+            document.getElementById('visitObatPulang').value = '';
+            document.getElementById('visitInstruksiPulang').value = '';
+            document.getElementById('visitTglKontrol').value = '';
+            document.getElementById('visitKontrolPulang').value = '';
+
+            toggleVisitHasil();
+        }
+
+        function simpanVisit() {
+            const noBed = document.getElementById('visitPasien').value.trim().toUpperCase();
+            const tanggal = document.getElementById('visitTanggal').value;
+            const jam = document.getElementById('visitJam').value;
+            const dokter = document.getElementById('visitDokter').value.trim();
+            const temuan = document.getElementById('visitTemuan').value.trim();
+            const isPulang = document.getElementById('radioVisitPulang').checked;
+
+            if (!noBed || !tanggal || !jam) {
+                alert('⚠️ No. Bed, Tanggal, dan Jam wajib diisi.');
+                return;
+            }
+
+            const pasien = dataPasien.find(p => p.noBed === noBed);
+            if (!pasien) {
+                alert(`⚠️ Pasien dengan No. Bed "${noBed}" tidak ditemukan. Pastikan No. Bed sudah benar.`);
+                return;
+            }
+
+            // Kalau ada input task yang belum diklik "+ Tambah", masukkan otomatis
+            const sisaTask = document.getElementById('visitTaskInput').value.trim();
+            if (sisaTask) tambahVisitTaskChip();
+
+            const visitEntry = {
+                id: dataVisit.length > 0 ? Math.max(...dataVisit.map(v => v.id)) + 1 : 1,
+                pasien: noBed,
+                tanggal, jam, dokter, temuan,
+                hasil: isPulang ? 'pulang' : 'lanjut',
+                jumlahTaskBaru: 0,
+                timestamp: new Date().toLocaleString('id-ID')
+            };
+
+            if (isPulang) {
+                if (!canEditPasienData()) {
+                    alert('⚠️ Hanya role Dokter yang bisa menandai pasien pulang.');
+                    return;
+                }
+                visitEntry.kondisiPulang = document.getElementById('visitKondisiPulang').value.trim();
+                visitEntry.obatPulang = document.getElementById('visitObatPulang').value.trim();
+                visitEntry.instruksiPulang = document.getElementById('visitInstruksiPulang').value.trim();
+                visitEntry.tglKontrol = document.getElementById('visitTglKontrol').value;
+                visitEntry.kontrolPulang = document.getElementById('visitKontrolPulang').value.trim();
+
+                // Update status pasien jadi PULANG + simpan info discharge untuk resume medis
+                pasien.status = 'pulang';
+                pasien.tglPulang = tanggal;
+                pasien.kondisiPulang = visitEntry.kondisiPulang;
+                pasien.obatPulang = visitEntry.obatPulang;
+                pasien.instruksiPulang = visitEntry.instruksiPulang;
+                pasien.tglKontrol = visitEntry.tglKontrol;
+                pasien.kontrolPulang = visitEntry.kontrolPulang;
+            } else {
+                // Tambahkan task-task baru dari visit ini ke dataTask
+                visitTaskList.forEach(t => {
+                    const newTaskId = dataTask.length > 0 ? Math.max(...dataTask.map(x => x.id)) + 1 : 1;
+                    dataTask.push({
+                        id: newTaskId,
+                        pasien: noBed,
+                        task: t.task,
+                        prioritas: t.prioritas,
+                        pic: t.pic || dokter || '-',
+                        status: 'pending'
+                    });
+                });
+                visitEntry.jumlahTaskBaru = visitTaskList.length;
+            }
+
+            dataVisit.push(visitEntry);
+            saveAllData();
+
+            closeModal('modalVisit');
+            displayVisit();
+            displayPasienList();
+            updateDashboard();
+
+            if (isPulang) {
+                alert(`🏠 Pasien ${pasien.nama} (${noBed}) ditandai PULANG.\n\nSilakan cetak Resume Medis dari menu Daftar Pasien / Detail Pasien.`);
+            } else {
+                alert(`✅ Visit tersimpan!${visitTaskList.length > 0 ? `\n${visitTaskList.length} task baru ditambahkan ke Task Pending.` : ''}`);
+            }
+        }
+
+        function displayVisit() {
+            const searchEl = document.getElementById('filterVisitPasien');
+            const search = searchEl ? searchEl.value.toLowerCase() : '';
+            const filtered = dataVisit.filter(v => v.pasien.toLowerCase().includes(search));
+
+            if (filtered.length === 0) {
+                document.getElementById('visitContent').innerHTML = '<p class="no-data">Belum ada catatan visit</p>';
+                return;
+            }
+
+            const grouped = {};
+            filtered.forEach(v => {
+                if (!grouped[v.pasien]) grouped[v.pasien] = [];
+                grouped[v.pasien].push(v);
+            });
+
+            let html = '';
+            Object.keys(grouped).sort().forEach(noBed => {
+                const pasien = dataPasien.find(p => p.noBed === noBed);
+                const namaLabel = pasien ? `${noBed} - ${pasien.nama}` : noBed;
+                const visits = grouped[noBed].sort((a,b) => new Date(b.tanggal + ' ' + b.jam) - new Date(a.tanggal + ' ' + a.jam));
+
+                html += `<div style="margin-bottom: 20px; background: white; border: 1px solid #ddd; border-radius: 8px; overflow: hidden;">
+                    <div style="background: linear-gradient(135deg, #C85A54 0%, #8B3A62 100%); color: white; padding: 15px; font-weight: 600; display:flex; justify-content:space-between; align-items:center;">
+                        <span>🩺 ${namaLabel}</span>
+                        <button class="btn-sm btn-secondary" onclick="openModalVisit('${noBed}')">+ Visit</button>
+                    </div>
+                    <div style="padding: 15px;">`;
+
+                visits.forEach(v => {
+                    const isPulang = v.hasil === 'pulang';
+                    html += `<div style="margin-bottom: 12px; padding: 12px; background: ${isPulang ? '#f0f0f0' : '#fff5f5'}; border-left: 4px solid ${isPulang ? '#666' : '#C85A54'}; border-radius: 6px;">
+                        <div><strong>📅 ${v.tanggal}</strong> | 🕐 ${v.jam} | 👨‍⚕️ ${v.dokter || '-'}</div>
+                        ${v.temuan ? `<div style="margin-top: 6px; white-space: pre-wrap;"><strong>Temuan:</strong> ${v.temuan}</div>` : ''}
+                        ${isPulang
+                            ? `<div style="margin-top: 8px; padding: 8px; background: white; border-radius: 6px;">
+                                <strong>🏠 PASIEN PULANG</strong><br>
+                                ${v.kondisiPulang ? `Kondisi: ${v.kondisiPulang}<br>` : ''}
+                                ${v.obatPulang ? `💊 Obat Pulang: ${v.obatPulang}<br>` : ''}
+                                ${v.instruksiPulang ? `Instruksi: ${v.instruksiPulang}<br>` : ''}
+                                ${v.tglKontrol ? `📅 Tgl Kontrol: ${v.tglKontrol}<br>` : ''}
+                                ${v.kontrolPulang ? `Tempat Kontrol: ${v.kontrolPulang}` : ''}
+                               </div>`
+                            : (v.jumlahTaskBaru > 0 ? `<div style="margin-top: 6px; font-size:12px; color:#8B3A62;">➕ ${v.jumlahTaskBaru} task baru ditambahkan</div>` : '')
+                        }
+                    </div>`;
+                });
+
+                html += `</div></div>`;
+            });
+
+            document.getElementById('visitContent').innerHTML = html;
+        }
+
+        // ============================================================
+        // 🏠 RESUME PULANG — bisa diisi/diedit langsung tanpa lewat Visit
+        // ============================================================
+        function openModalResumePulang(noBed) {
+            if (!canEditPasienData()) {
+                alert('⚠️ Hanya role Dokter yang bisa mengisi Resume Pulang.');
+                return;
+            }
+            const pasien = dataPasien.find(p => p.noBed === noBed);
+            if (!pasien) {
+                alert(`⚠️ Pasien dengan No. Bed "${noBed}" tidak ditemukan.`);
+                return;
+            }
+
+            document.getElementById('modalResumePulang').style.display = 'block';
+            document.getElementById('resumeNoBed').value = `${pasien.noBed} - ${pasien.nama}`;
+            document.getElementById('resumeTglPulang').value = pasien.tglPulang || new Date().toISOString().split('T')[0];
+            document.getElementById('resumeKondisiPulang').value = pasien.kondisiPulang || '';
+            document.getElementById('resumeObatPulang').value = pasien.obatPulang || '';
+            document.getElementById('resumeInstruksiPulang').value = pasien.instruksiPulang || '';
+            document.getElementById('resumeTglKontrol').value = pasien.tglKontrol || '';
+            document.getElementById('resumeKontrolPulang').value = pasien.kontrolPulang || '';
+
+            // Simpan referensi noBed untuk dipakai saat submit
+            document.getElementById('modalResumePulang').dataset.noBed = noBed;
+        }
+
+        function simpanResumePulang() {
+            const noBed = document.getElementById('modalResumePulang').dataset.noBed;
+            const pasien = dataPasien.find(p => p.noBed === noBed);
+            if (!pasien) return;
+
+            const tglPulang = document.getElementById('resumeTglPulang').value;
+            if (!tglPulang) {
+                alert('⚠️ Tanggal Pulang wajib diisi.');
+                return;
+            }
+
+            pasien.status = 'pulang';
+            pasien.tglPulang = tglPulang;
+            pasien.kondisiPulang = document.getElementById('resumeKondisiPulang').value.trim();
+            pasien.obatPulang = document.getElementById('resumeObatPulang').value.trim();
+            pasien.instruksiPulang = document.getElementById('resumeInstruksiPulang').value.trim();
+            pasien.tglKontrol = document.getElementById('resumeTglKontrol').value;
+            pasien.kontrolPulang = document.getElementById('resumeKontrolPulang').value.trim();
+
+            saveAllData();
+            closeModal('modalResumePulang');
+            displayPasienList();
+            updateDashboard();
+
+            alert(`✅ Resume Pulang untuk ${pasien.nama} (${noBed}) tersimpan!\n\nSilakan cetak/download resume dari detail pasien.`);
+        }
+
+        // ============================================================
+        // 🌡️ FITUR OBSERVASI — vital sign / observasi berkala per pasien
+        // (menggantikan tab Monitoring Harian yang sebelumnya belum tersimpan datanya)
+        // ============================================================
+        function openModalObservasi(noBed = '') {
+            document.getElementById('modalObservasi').style.display = 'block';
+            document.getElementById('observasiPasien').value = noBed ? noBed.toUpperCase() : '';
+            document.getElementById('observasiTanggal').valueAsDate = new Date();
+            document.getElementById('observasiJam').value = new Date().toTimeString().slice(0,5);
+            document.getElementById('obsTD').value = '';
+            document.getElementById('obsNadi').value = '';
+            document.getElementById('obsRR').value = '';
+            document.getElementById('obsSuhu').value = '';
+            document.getElementById('obsSpO2').value = '';
+            document.getElementById('obsKesadaran').value = 'Compos Mentis';
+            document.getElementById('obsIntake').value = '';
+            document.getElementById('obsOutput').value = '';
+            document.getElementById('obsCatatan').value = '';
+            document.getElementById('obsPetugas').value = dataSettings.namaDokter || '';
+        }
+
+        function simpanObservasi() {
+            const noBed = document.getElementById('observasiPasien').value.trim().toUpperCase();
+            const tanggal = document.getElementById('observasiTanggal').value;
+            const jam = document.getElementById('observasiJam').value;
+
+            if (!noBed || !tanggal || !jam) {
+                alert('⚠️ No. Bed, Tanggal, dan Jam wajib diisi.');
+                return;
+            }
+
+            const pasien = dataPasien.find(p => p.noBed === noBed);
+            if (!pasien) {
+                alert(`⚠️ Pasien dengan No. Bed "${noBed}" tidak ditemukan. Pastikan No. Bed sudah benar.`);
+                return;
+            }
+
+            const obs = {
+                id: dataObservasi.length > 0 ? Math.max(...dataObservasi.map(o => o.id)) + 1 : 1,
+                pasien: noBed,
+                tanggal, jam,
+                td: document.getElementById('obsTD').value.trim(),
+                nadi: document.getElementById('obsNadi').value.trim(),
+                rr: document.getElementById('obsRR').value.trim(),
+                suhu: document.getElementById('obsSuhu').value.trim(),
+                spo2: document.getElementById('obsSpO2').value.trim(),
+                kesadaran: document.getElementById('obsKesadaran').value,
+                intake: document.getElementById('obsIntake').value.trim(),
+                output: document.getElementById('obsOutput').value.trim(),
+                catatan: document.getElementById('obsCatatan').value.trim(),
+                petugas: document.getElementById('obsPetugas').value.trim(),
+                timestamp: new Date().toLocaleString('id-ID')
+            };
+
+            dataObservasi.push(obs);
+            saveAllData();
+
+            closeModal('modalObservasi');
+            displayObservasi();
+            alert('✓ Observasi berhasil disimpan!');
+        }
+
+        function displayObservasi() {
+            const searchEl = document.getElementById('filterObservasiPasien');
+            const search = searchEl ? searchEl.value.toLowerCase() : '';
+            const filtered = dataObservasi.filter(o => o.pasien.toLowerCase().includes(search));
+
+            if (filtered.length === 0) {
+                document.getElementById('observasiContent').innerHTML = '<p class="no-data">Belum ada data observasi</p>';
+                return;
+            }
+
+            const grouped = {};
+            filtered.forEach(o => {
+                if (!grouped[o.pasien]) grouped[o.pasien] = [];
+                grouped[o.pasien].push(o);
+            });
+
+            let html = '';
+            Object.keys(grouped).sort().forEach(noBed => {
+                const pasien = dataPasien.find(p => p.noBed === noBed);
+                const namaLabel = pasien ? `${noBed} - ${pasien.nama}` : noBed;
+                const list = grouped[noBed].sort((a,b) => new Date(b.tanggal + ' ' + b.jam) - new Date(a.tanggal + ' ' + a.jam));
+
+                html += `<div style="margin-bottom: 20px; background: white; border: 1px solid #ddd; border-radius: 8px; overflow: hidden;">
+                    <div style="background: linear-gradient(135deg, #0288d1 0%, #26c6da 100%); color: white; padding: 15px; font-weight: 600; display:flex; justify-content:space-between; align-items:center;">
+                        <span>🌡️ ${namaLabel}</span>
+                        <button class="btn-sm btn-secondary" onclick="openModalObservasi('${noBed}')">+ Observasi</button>
+                    </div>
+                    <div class="table-container" style="border:none;">
+                        <table>
+                            <thead>
+                                <tr style="background:#e0f2fe;">
+                                    <th>Tgl / Jam</th>
+                                    <th>TD</th>
+                                    <th>Nadi</th>
+                                    <th>RR</th>
+                                    <th>Suhu</th>
+                                    <th>SpO2</th>
+                                    <th>Kesadaran</th>
+                                    <th>Intake/Output</th>
+                                    <th>Catatan</th>
+                                    <th>Petugas</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${list.map(o => {
+                                    const abnormal = (o.spo2 && parseInt(o.spo2) < 95) || (o.suhu && parseFloat(o.suhu) >= 38) || (o.kesadaran && o.kesadaran !== 'Compos Mentis');
+                                    return `<tr style="${abnormal ? 'background:#fff3cd;' : ''}">
+                                        <td><small>${o.tanggal}<br>${o.jam}</small></td>
+                                        <td>${o.td || '-'}</td>
+                                        <td>${o.nadi || '-'}</td>
+                                        <td>${o.rr || '-'}</td>
+                                        <td>${o.suhu || '-'}</td>
+                                        <td>${o.spo2 || '-'}</td>
+                                        <td><small>${o.kesadaran || '-'}</small></td>
+                                        <td><small>${o.intake || '-'} / ${o.output || '-'}</small></td>
+                                        <td><small>${o.catatan || '-'}</small></td>
+                                        <td><small>${o.petugas || '-'}</small></td>
+                                    </tr>`;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>`;
+            });
+
+            document.getElementById('observasiContent').innerHTML = html;
+        }
+
         // Trend Diagnosis Functions
         function displayTrendDiagnosis() {
             const selectedPasien = document.getElementById('selectPasienTrend').value;
@@ -2953,6 +4350,280 @@
             </div>`;
 
             document.getElementById('trendContent').innerHTML = html;
+        }
+
+        // ============================================================
+        // 📚 REKAM MEDIS KESELURUHAN — rangkuman semua data 1 pasien
+        // (visit, observasi, progress note, hasil penunjang, task, dll)
+        // ============================================================
+        function isiDropdownRekamMedis() {
+            const select = document.getElementById('selectPasienRekamMedis');
+            if (!select) return;
+            const currentVal = select.value;
+            let html = '<option value="">-- Pilih Pasien untuk Lihat Rekam Medis Lengkap --</option>';
+            dataPasien.forEach(p => {
+                html += `<option value="${p.noBed}">${p.noBed} - ${p.nama}${p.status === 'pulang' ? ' (Sudah Pulang)' : ''}</option>`;
+            });
+            select.innerHTML = html;
+            if (currentVal) select.value = currentVal;
+        }
+
+        function displayRekamMedisLengkap() {
+            const noBed = document.getElementById('selectPasienRekamMedis').value;
+            const btnCetak = document.getElementById('btnCetakRekamMedisLengkap');
+
+            if (!noBed) {
+                document.getElementById('rekamMedisContent').innerHTML = '<p class="no-data">Pilih pasien terlebih dahulu</p>';
+                if (btnCetak) btnCetak.style.display = 'none';
+                return;
+            }
+
+            const pasien = dataPasien.find(p => p.noBed === noBed);
+            if (!pasien) return;
+            if (btnCetak) btnCetak.style.display = 'inline-block';
+
+            const visits = dataVisit.filter(v => v.pasien === noBed).sort((a,b) => new Date(b.tanggal+' '+b.jam) - new Date(a.tanggal+' '+a.jam));
+            const observasi = dataObservasi.filter(o => o.pasien === noBed).sort((a,b) => new Date(b.tanggal+' '+b.jam) - new Date(a.tanggal+' '+a.jam));
+            const progressNotes = dataProgressNote.filter(p => p.pasien === noBed).sort((a,b) => new Date(b.tanggal+' '+b.jam) - new Date(a.tanggal+' '+a.jam));
+            const penunjang = dataPemeriksaanPenunjang.filter(p => p.pasien === noBed).sort((a,b) => new Date(b.tanggal) - new Date(a.tanggal));
+            const tasks = dataTask.filter(t => t.pasien === noBed);
+
+            let html = `
+            <div style="background: linear-gradient(135deg, #8B3A62 0%, #C85A54 100%); color:white; padding: 18px; border-radius: 10px; margin-bottom: 20px;">
+                <h3 style="margin-bottom: 8px;">📚 ${pasien.nama} (${noBed}) ${pasien.status === 'pulang' ? '<span style="background:white; color:#333; font-size:11px; padding:3px 8px; border-radius:10px; margin-left:6px;">SUDAH PULANG</span>' : ''}</h3>
+                <div style="font-size: 12.5px; opacity:0.95; display:grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap:6px;">
+                    <div>No. RM: ${pasien.noRM || '-'}</div>
+                    <div>Umur: ${pasien.umur}</div>
+                    <div>DPJP: ${dpjpDisplay(pasien)}</div>
+                    <div>Masuk: ${pasien.tglMasuk}</div>
+                    ${pasien.status === 'pulang' ? `<div>Pulang: ${pasien.tglPulang || '-'}</div>` : `<div>Status: ${pasien.status?.toUpperCase() || '-'}</div>`}
+                </div>
+            </div>
+
+            <div style="background:white; border:1px solid #ddd; border-radius:8px; padding:15px; margin-bottom:16px;">
+                <h4 style="color:#8B3A62; margin-bottom:8px; font-size:13px;">🏥 Diagnosis & Terapi</h4>
+                <div style="font-size:12.5px; line-height:1.6;">
+                    <strong>Diagnosis Awal:</strong> ${pasien.diagnosisAwal || '-'}<br>
+                    <strong>Diagnosis Terkini:</strong> ${pasien.diagnosisHariIni || '-'}<br>
+                    <strong>Keluhan:</strong> ${pasien.keluhan || '-'}<br>
+                    <strong>Terapi:</strong> ${pasien.terapi || '-'}<br>
+                    <strong>Rencana:</strong> ${pasien.rencana || '-'}
+                </div>
+            </div>`;
+
+            // Section Visit
+            html += `<div style="background:white; border:1px solid #ddd; border-radius:8px; padding:15px; margin-bottom:16px;">
+                <h4 style="color:#C85A54; margin-bottom:8px; font-size:13px;">🩺 Riwayat Visit (${visits.length})</h4>`;
+            if (visits.length === 0) {
+                html += '<p style="font-size:12px; color:#999;">Belum ada catatan visit</p>';
+            } else {
+                visits.forEach(v => {
+                    html += `<div style="font-size:12px; margin-bottom:8px; padding:8px; background:#fafafa; border-radius:6px;">
+                        <strong>${v.tanggal} ${v.jam}</strong> (${v.dokter || '-'}) ${v.hasil === 'pulang' ? '🏠 PULANG' : ''}<br>
+                        ${v.temuan || '-'}
+                    </div>`;
+                });
+            }
+            html += `</div>`;
+
+            // Section Observasi
+            html += `<div style="background:white; border:1px solid #ddd; border-radius:8px; padding:15px; margin-bottom:16px;">
+                <h4 style="color:#0288d1; margin-bottom:8px; font-size:13px;">🌡️ Riwayat Observasi / Vital Sign (${observasi.length})</h4>`;
+            if (observasi.length === 0) {
+                html += '<p style="font-size:12px; color:#999;">Belum ada data observasi</p>';
+            } else {
+                html += `<div class="table-container" style="border:none;"><table><thead><tr style="background:#e0f2fe;">
+                    <th>Tgl/Jam</th><th>TD</th><th>Nadi</th><th>RR</th><th>Suhu</th><th>SpO2</th><th>Kesadaran</th>
+                </tr></thead><tbody>`;
+                observasi.slice(0, 15).forEach(o => {
+                    html += `<tr><td><small>${o.tanggal} ${o.jam}</small></td><td>${o.td||'-'}</td><td>${o.nadi||'-'}</td><td>${o.rr||'-'}</td><td>${o.suhu||'-'}</td><td>${o.spo2||'-'}</td><td><small>${o.kesadaran||'-'}</small></td></tr>`;
+                });
+                html += `</tbody></table></div>`;
+                if (observasi.length > 15) html += `<p style="font-size:11px; color:#999; margin-top:6px;">+ ${observasi.length - 15} data lainnya</p>`;
+            }
+            html += `</div>`;
+
+            // Section Progress Note
+            html += `<div style="background:white; border:1px solid #ddd; border-radius:8px; padding:15px; margin-bottom:16px;">
+                <h4 style="color:#00b4d8; margin-bottom:8px; font-size:13px;">📝 Riwayat Progress Note (${progressNotes.length})</h4>`;
+            if (progressNotes.length === 0) {
+                html += '<p style="font-size:12px; color:#999;">Belum ada progress note</p>';
+            } else {
+                progressNotes.forEach(n => {
+                    html += `<div style="font-size:12px; margin-bottom:8px; padding:8px; background:#f0f9ff; border-radius:6px;">
+                        <strong>${n.tanggal} ${n.jam}</strong> (${n.writer || '-'})<br>${(n.status || '-').substring(0,150)}
+                    </div>`;
+                });
+            }
+            html += `</div>`;
+
+            // Section Hasil Penunjang
+            html += `<div style="background:white; border:1px solid #ddd; border-radius:8px; padding:15px; margin-bottom:16px;">
+                <h4 style="color:#667eea; margin-bottom:8px; font-size:13px;">🔬 Riwayat Hasil Penunjang (${penunjang.length})</h4>`;
+            if (penunjang.length === 0) {
+                html += '<p style="font-size:12px; color:#999;">Belum ada hasil pemeriksaan penunjang</p>';
+            } else {
+                penunjang.forEach(p => {
+                    html += `<div style="font-size:12px; margin-bottom:8px; padding:8px; background:#f5f5ff; border-radius:6px;">
+                        <strong>${p.tanggal}</strong> · ${p.jenis} · ${p.nama}: <strong>${p.hasil}</strong>
+                        ${fotoThumbnailHTML(p)}
+                    </div>`;
+                });
+            }
+            html += `</div>`;
+
+            // Section Task
+            html += `<div style="background:white; border:1px solid #ddd; border-radius:8px; padding:15px; margin-bottom:16px;">
+                <h4 style="color:#dc3545; margin-bottom:8px; font-size:13px;">✓ Riwayat Task (${tasks.length})</h4>`;
+            if (tasks.length === 0) {
+                html += '<p style="font-size:12px; color:#999;">Belum ada task untuk pasien ini</p>';
+            } else {
+                tasks.forEach(t => {
+                    html += `<div style="font-size:12px; margin-bottom:6px; padding:6px 10px; background:${t.status==='pending' ? '#fff3cd' : '#e8f5e9'}; border-radius:6px; display:flex; justify-content:space-between;">
+                        <span>${t.task}${t.pic && t.pic !== '-' ? ` · PIC: ${t.pic}` : ''}</span>
+                        <span>${t.status === 'pending' ? '⏳ Pending' : '✅ Selesai'}</span>
+                    </div>`;
+                });
+            }
+            html += `</div>`;
+
+            // Section Resume Pulang (kalau ada)
+            if (pasien.status === 'pulang') {
+                html += `<div style="background:#f0f9f0; border:1px solid #a5d6a7; border-radius:8px; padding:15px; margin-bottom:16px;">
+                    <h4 style="color:#2e7d32; margin-bottom:8px; font-size:13px;">🏠 Info Pulang</h4>
+                    <div style="font-size:12.5px; line-height:1.6;">
+                        <strong>Tanggal Pulang:</strong> ${pasien.tglPulang || '-'}<br>
+                        <strong>Kondisi Pulang:</strong> ${pasien.kondisiPulang || '-'}<br>
+                        <strong>💊 Obat Pulang:</strong> ${pasien.obatPulang || '-'}<br>
+                        <strong>Instruksi Lain:</strong> ${pasien.instruksiPulang || '-'}<br>
+                        <strong>Tanggal Kontrol:</strong> ${pasien.tglKontrol || '-'}<br>
+                        <strong>Tempat Kontrol:</strong> ${pasien.kontrolPulang || '-'}
+                    </div>
+                </div>`;
+            }
+
+            document.getElementById('rekamMedisContent').innerHTML = html;
+        }
+
+        function cetakRekamMedisLengkap(noBed) {
+            if (!noBed) { alert('⚠️ Pilih pasien terlebih dahulu.'); return; }
+            const pasien = dataPasien.find(p => p.noBed === noBed);
+            if (!pasien) return;
+
+            const visits = dataVisit.filter(v => v.pasien === noBed).sort((a,b) => new Date(a.tanggal+' '+a.jam) - new Date(b.tanggal+' '+b.jam));
+            const observasi = dataObservasi.filter(o => o.pasien === noBed).sort((a,b) => new Date(a.tanggal+' '+a.jam) - new Date(b.tanggal+' '+b.jam));
+            const progressNotes = dataProgressNote.filter(p => p.pasien === noBed).sort((a,b) => new Date(a.tanggal+' '+a.jam) - new Date(b.tanggal+' '+b.jam));
+            const penunjang = dataPemeriksaanPenunjang.filter(p => p.pasien === noBed).sort((a,b) => new Date(a.tanggal) - new Date(b.tanggal));
+
+            let printContent = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Rekam Medis Lengkap - ${pasien.nama}</title>
+                <style>
+                    body { font-family: Arial, sans-serif; line-height: 1.6; color: #222; font-size: 12.5px; }
+                    .header { text-align: center; margin-bottom: 18px; border-bottom: 3px solid #8B3A62; padding-bottom: 10px; }
+                    .header h1 { margin: 0; font-size: 18px; color: #8B3A62; }
+                    .section { margin-bottom: 16px; }
+                    .section-title { background: #f3e5f5; color: #5b2d91; padding: 7px 10px; font-weight: bold; border-left: 4px solid #8B3A62; font-size: 12.5px; }
+                    .content { padding: 10px; border: 1px solid #ddd; border-top: none; }
+                    table { width: 100%; border-collapse: collapse; }
+                    th, td { border: 1px solid #ddd; padding: 5px 7px; text-align: left; font-size: 11px; }
+                    th { background: #f8f8f8; }
+                    .entry { margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px dashed #ddd; }
+                    @media print { body { margin: 0; padding: 10mm; } }
+                </style>
+            </head>
+            <body>
+                <div class="header">
+                    <h1>📚 REKAM MEDIS LENGKAP</h1>
+                    <p>${dataSettings.namaKlinik || 'Klinik'} · Dicetak: ${new Date().toLocaleString('id-ID')}</p>
+                </div>
+
+                <div class="section">
+                    <div class="section-title">📋 IDENTITAS PASIEN</div>
+                    <div class="content">
+                        <table>
+                            <tr><td><strong>Nama</strong></td><td>${pasien.nama}</td><td><strong>No. RM</strong></td><td>${pasien.noRM || '-'}</td></tr>
+                            <tr><td><strong>No. Bed</strong></td><td>${pasien.noBed}</td><td><strong>Umur</strong></td><td>${pasien.umur}</td></tr>
+                            <tr><td><strong>DPJP</strong></td><td colspan="3">${dpjpDisplay(pasien)}</td></tr>
+                            <tr><td><strong>Tgl Masuk</strong></td><td>${pasien.tglMasuk}</td><td><strong>Tgl Pulang</strong></td><td>${pasien.tglPulang || '-'}</td></tr>
+                        </table>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <div class="section-title">🏥 DIAGNOSIS & TERAPI</div>
+                    <div class="content">
+                        <strong>Diagnosis Awal:</strong> ${pasien.diagnosisAwal || '-'}<br>
+                        <strong>Diagnosis Terkini:</strong> ${pasien.diagnosisHariIni || '-'}<br>
+                        <strong>Keluhan:</strong> ${pasien.keluhan || '-'}<br>
+                        <strong>Terapi:</strong> ${pasien.terapi || '-'}<br>
+                        <strong>Rencana:</strong> ${pasien.rencana || '-'}
+                    </div>
+                </div>
+
+                ${visits.length > 0 ? `
+                <div class="section">
+                    <div class="section-title">🩺 RIWAYAT VISIT (${visits.length})</div>
+                    <div class="content">
+                        ${visits.map(v => `<div class="entry"><strong>${v.tanggal} ${v.jam}</strong> (${v.dokter || '-'})${v.hasil === 'pulang' ? ' — PULANG' : ''}<br>${v.temuan || '-'}</div>`).join('')}
+                    </div>
+                </div>` : ''}
+
+                ${observasi.length > 0 ? `
+                <div class="section">
+                    <div class="section-title">🌡️ RIWAYAT OBSERVASI / VITAL SIGN (${observasi.length})</div>
+                    <div class="content">
+                        <table>
+                            <thead><tr><th>Tgl/Jam</th><th>TD</th><th>Nadi</th><th>RR</th><th>Suhu</th><th>SpO2</th><th>Kesadaran</th><th>Catatan</th></tr></thead>
+                            <tbody>
+                                ${observasi.map(o => `<tr><td>${o.tanggal} ${o.jam}</td><td>${o.td||'-'}</td><td>${o.nadi||'-'}</td><td>${o.rr||'-'}</td><td>${o.suhu||'-'}</td><td>${o.spo2||'-'}</td><td>${o.kesadaran||'-'}</td><td>${o.catatan||'-'}</td></tr>`).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>` : ''}
+
+                ${progressNotes.length > 0 ? `
+                <div class="section">
+                    <div class="section-title">📝 RIWAYAT PROGRESS NOTE (${progressNotes.length})</div>
+                    <div class="content">
+                        ${progressNotes.map(n => `<div class="entry"><strong>${n.tanggal} ${n.jam}</strong> (${n.writer || '-'})<br>${n.status || '-'}</div>`).join('')}
+                    </div>
+                </div>` : ''}
+
+                ${penunjang.length > 0 ? `
+                <div class="section">
+                    <div class="section-title">🔬 RIWAYAT HASIL PENUNJANG (${penunjang.length})</div>
+                    <div class="content">
+                        <table>
+                            <thead><tr><th>Tanggal</th><th>Jenis</th><th>Parameter</th><th>Hasil</th><th>Catatan</th></tr></thead>
+                            <tbody>${penunjang.map(p => `<tr><td>${p.tanggal}</td><td>${p.jenis}</td><td>${p.nama}</td><td>${p.hasil}</td><td>${p.catatan||'-'}</td></tr>`).join('')}</tbody>
+                        </table>
+                    </div>
+                </div>` : ''}
+
+                ${pasien.status === 'pulang' ? `
+                <div class="section">
+                    <div class="section-title">🏠 INFO PULANG</div>
+                    <div class="content">
+                        <strong>Kondisi Pulang:</strong> ${pasien.kondisiPulang || '-'}<br>
+                        <strong>Instruksi Pulang:</strong> ${(pasien.instruksiPulang || '-').replace(/\n/g,'<br>')}<br>
+                        <strong>Rencana Kontrol:</strong> ${pasien.kontrolPulang || '-'}
+                    </div>
+                </div>` : ''}
+
+                <div style="margin-top: 20px; text-align: center; font-size: 10.5px; color: #999;">
+                    <p>Dokumen ini adalah rangkuman seluruh data sistem operan — bukan pengganti rekam medis resmi rumah sakit.</p>
+                </div>
+            </body>
+            </html>
+            `;
+
+            const printWindow = window.open('', '', 'height=800,width=900');
+            printWindow.document.write(printContent);
+            printWindow.document.close();
+            setTimeout(() => printWindow.print(), 250);
         }
 
         // Close modal when click outside
