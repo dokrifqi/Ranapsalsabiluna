@@ -9,6 +9,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-storage-compat.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
@@ -601,6 +602,12 @@
                             <div style="font-size: 9.5px; font-weight: 700; color: #333; line-height: 1.15;">Observasi</div>
                             <div style="font-size: 9.5px; color: #999; line-height: 1.15;">Vital Sign</div>
                         </div>
+                        <!-- 3b. Checklist perawatan harian (rutin) -->
+                        <div onclick="switchTab('checklist')" style="background: white; border-radius: 10px; padding: 10px 4px; text-align: center; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.06);">
+                            <div style="width: 34px; height: 34px; border-radius: 9px; background: #e8f5e9; display: flex; align-items: center; justify-content: center; font-size: 16px; margin: 0 auto 6px auto;">✅</div>
+                            <div style="font-size: 9.5px; font-weight: 700; color: #333; line-height: 1.15;">Checklist</div>
+                            <div style="font-size: 9.5px; color: #999; line-height: 1.15;">Perawatan</div>
+                        </div>
                         <!-- 4. Progress note harian -->
                         <div onclick="switchTab('progressnote')" style="background: white; border-radius: 10px; padding: 10px 4px; text-align: center; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.06);">
                             <div style="width: 34px; height: 34px; border-radius: 9px; background: #e2f6ea; display: flex; align-items: center; justify-content: center; font-size: 16px; margin: 0 auto 6px auto;">📝</div>
@@ -636,6 +643,12 @@
                             <div style="width: 34px; height: 34px; border-radius: 9px; background: #e8eaf6; display: flex; align-items: center; justify-content: center; font-size: 16px; margin: 0 auto 6px auto;">📚</div>
                             <div style="font-size: 9.5px; font-weight: 700; color: #333; line-height: 1.15;">Rekam</div>
                             <div style="font-size: 9.5px; color: #999; line-height: 1.15;">Medis</div>
+                        </div>
+                        <!-- 9b. Resume pulang -->
+                        <div onclick="switchTab('resumepulang')" style="background: white; border-radius: 10px; padding: 10px 4px; text-align: center; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.06);">
+                            <div style="width: 34px; height: 34px; border-radius: 9px; background: #e8f5e9; display: flex; align-items: center; justify-content: center; font-size: 16px; margin: 0 auto 6px auto;">🏠</div>
+                            <div style="font-size: 9.5px; font-weight: 700; color: #333; line-height: 1.15;">Resume</div>
+                            <div style="font-size: 9.5px; color: #999; line-height: 1.15;">Pulang</div>
                         </div>
                         <!-- 10. Form operan (serah terima shift, akhir hari) -->
                         <div onclick="switchTab('operan')" style="background: white; border-radius: 10px; padding: 10px 4px; text-align: center; cursor: pointer; box-shadow: 0 2px 6px rgba(0,0,0,0.06);">
@@ -682,6 +695,7 @@
                                     <th style="min-width:80px;">No. Bed*</th>
                                     <th style="min-width:140px;">Nama Pasien*</th>
                                     <th style="min-width:90px;">Umur</th>
+                                    <th style="min-width:70px;">BB (kg)</th>
                                     <th style="min-width:100px;">No. RM</th>
                                     <th style="min-width:130px;">Tgl Masuk*</th>
                                     <th style="min-width:180px;">DPJP* (pisah koma jika &gt;1)</th>
@@ -695,6 +709,7 @@
                                     <td><input type="text" id="ranapNoBed" placeholder="A1" style="width:100%;"></td>
                                     <td><input type="text" id="ranapNama" placeholder="Nama lengkap" style="width:100%;"></td>
                                     <td><input type="text" id="ranapUmur" placeholder="45 thn" style="width:100%;"></td>
+                                    <td><input type="number" step="0.1" id="ranapBB" placeholder="12.5" style="width:100%;"></td>
                                     <td><input type="text" id="ranapNoRM" placeholder="RM-001" style="width:100%;"></td>
                                     <td><input type="date" id="ranapTglMasuk" style="width:100%;"></td>
                                     <td><input type="text" id="ranapDPJP" placeholder="dr. A, dr. B" list="datalistDPJP" style="width:100%;"></td>
@@ -741,6 +756,7 @@
                                 <th>DPJP</th>
                                 <th>Diagnosis Awal</th>
                                 <th>Status</th>
+                                <th>EWS</th>
                                 <th>Hari ke-</th>
                                 <th>Task</th>
                                 <th style="width: 120px;">Aksi</th>
@@ -847,6 +863,17 @@
                 <div id="observasiContent"></div>
             </div>
 
+            <!-- Checklist Perawatan Harian Tab -->
+            <div id="checklist" class="tab-content">
+                <div style="margin-bottom: 16px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+                    <select id="selectPasienChecklist" onchange="displayChecklist()" style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; min-width: 250px; flex:1;">
+                        <option value="">-- Pilih Pasien --</option>
+                    </select>
+                    <input type="date" id="checklistTanggal" onchange="displayChecklist()" style="padding:10px; border:1px solid #ddd; border-radius:6px;">
+                </div>
+                <div id="checklistContent"></div>
+            </div>
+
             <!-- Trend Diagnosis Tab -->
             <div id="trend" class="tab-content">
                 <div style="margin-bottom: 20px;">
@@ -868,6 +895,29 @@
                 </div>
 
                 <div id="rekamMedisContent"></div>
+            </div>
+
+            <!-- Resume Pulang Tab -->
+            <div id="resumepulang" class="tab-content">
+                <div style="margin-bottom: 18px;">
+                    <h3 style="font-size: 14px; color: #2e7d32; margin-bottom: 4px;">🏠 Resume Pulang</h3>
+                    <p style="font-size: 11.5px; color: #999;">Kelola resume pulang pasien — isi obat pulang & rencana kontrol, lalu cetak/download saat pasien pulang.</p>
+                </div>
+
+                <!-- List pasien sudah pulang -->
+                <div style="margin-bottom: 20px;">
+                    <h4 style="font-size: 12.5px; color: #333; margin-bottom: 10px;">📋 Pasien Sudah Pulang</h4>
+                    <div id="listPasienSudahPulang"></div>
+                </div>
+
+                <!-- Pilih pasien manapun untuk siapkan/edit resume -->
+                <div style="background: white; border: 1px solid #eee; border-radius: 10px; padding: 14px;">
+                    <h4 style="font-size: 12.5px; color: #333; margin-bottom: 10px;">🔍 Pilih / Siapkan Resume Pasien Lain</h4>
+                    <select id="selectPasienResumePulang" onchange="tampilkanPreviewResumePulang()" style="padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; width: 100%;">
+                        <option value="">-- Pilih Pasien --</option>
+                    </select>
+                    <div id="previewResumePulangContent" style="margin-top: 16px;"></div>
+                </div>
             </div>
 
             <!-- Form Operan Tab -->
@@ -1070,10 +1120,14 @@
                             <input type="text" id="namaPasien" required placeholder="Nama lengkap">
                         </div>
                     </div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 15px;">
                         <div class="form-group">
                             <label>Umur</label>
                             <input type="text" id="umur" required placeholder="Cth: 45 tahun">
+                        </div>
+                        <div class="form-group">
+                            <label>⚖️ BB (kg)</label>
+                            <input type="number" step="0.1" id="beratBadan" placeholder="12.5">
                         </div>
                         <div class="form-group">
                             <label>No. RM</label>
@@ -1307,7 +1361,9 @@
 
             <div class="form-group">
                 <label>No. Bed / Pasien</label>
-                <input type="text" id="visitPasien" placeholder="No. bed atau nama pasien">
+                <select id="visitPasien">
+                    <option value="">-- Pilih Pasien --</option>
+                </select>
             </div>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                 <div class="form-group">
@@ -1323,6 +1379,12 @@
                 <label>Dokter yang Visit</label>
                 <input type="text" id="visitDokter" placeholder="Nama dokter" list="datalistDPJP">
             </div>
+
+            <!-- Referensi skor EWS dari observasi terakhir -->
+            <div id="visitEWSBox" style="display:none; padding:10px 12px; border-radius:8px; margin-bottom:14px; font-size:12.5px;">
+                <strong id="visitEWSLabel"></strong>
+            </div>
+
             <div class="form-group">
                 <label>Temuan / Assessment Saat Visit</label>
                 <textarea id="visitTemuan" placeholder="Kondisi pasien saat divisit, hasil pemeriksaan fisik, perkembangan klinis..."></textarea>
@@ -1443,7 +1505,9 @@
 
             <div class="form-group">
                 <label>No. Bed / Pasien</label>
-                <input type="text" id="observasiPasien" placeholder="No. bed atau nama pasien">
+                <select id="observasiPasien">
+                    <option value="">-- Pilih Pasien --</option>
+                </select>
             </div>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                 <div class="form-group">
@@ -1463,41 +1527,51 @@
                 </div>
                 <div class="form-group">
                     <label>Nadi (x/menit)</label>
-                    <input type="text" id="obsNadi" placeholder="88">
+                    <input type="number" id="obsNadi" placeholder="88" oninput="previewEWS()">
                 </div>
                 <div class="form-group">
                     <label>RR (x/menit)</label>
-                    <input type="text" id="obsRR" placeholder="20">
+                    <input type="number" id="obsRR" placeholder="20" oninput="previewEWS()">
                 </div>
             </div>
             <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
                 <div class="form-group">
                     <label>Suhu (°C)</label>
-                    <input type="text" id="obsSuhu" placeholder="36.8">
+                    <input type="number" step="0.1" id="obsSuhu" placeholder="36.8" oninput="previewEWS()">
                 </div>
                 <div class="form-group">
-                    <label>SpO2 (%)</label>
-                    <input type="text" id="obsSpO2" placeholder="98">
+                    <label>🫁 Saturasi O2 / SpO2 (%)</label>
+                    <input type="number" id="obsSpO2" placeholder="98" oninput="previewEWS()">
                 </div>
                 <div class="form-group">
-                    <label>Kesadaran</label>
-                    <select id="obsKesadaran">
-                        <option value="Compos Mentis">Compos Mentis</option>
-                        <option value="Somnolen">Somnolen</option>
-                        <option value="Apatis">Apatis</option>
-                        <option value="Sopor">Sopor</option>
-                        <option value="Coma">Coma</option>
-                    </select>
+                    <label>⚖️ Berat Badan (kg)</label>
+                    <input type="number" step="0.1" id="obsBB" placeholder="12.5">
                 </div>
             </div>
+            <div class="form-group">
+                <label>Kesadaran</label>
+                <select id="obsKesadaran" onchange="previewEWS()">
+                    <option value="Compos Mentis">Compos Mentis</option>
+                    <option value="Somnolen">Somnolen</option>
+                    <option value="Apatis">Apatis</option>
+                    <option value="Sopor">Sopor</option>
+                    <option value="Coma">Coma</option>
+                </select>
+            </div>
+
+            <!-- Preview Skor EWS/PEWS otomatis -->
+            <div id="previewEWSBox" style="display:none; padding:10px 12px; border-radius:8px; margin-bottom:14px; font-size:12.5px;">
+                <strong id="previewEWSLabel"></strong>
+            </div>
+
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
                 <div class="form-group">
-                    <label>Intake Cairan</label>
-                    <input type="text" id="obsIntake" placeholder="Cth: 500ml">
+                    <label>Intake Cairan (ml)</label>
+                    <input type="number" id="obsIntake" placeholder="500">
                 </div>
                 <div class="form-group">
-                    <label>Output (urin/drain dll)</label>
-                    <input type="text" id="obsOutput" placeholder="Cth: 300ml">
+                    <label>Output / urin+drain (ml)</label>
+                    <input type="number" id="obsOutput" placeholder="300">
                 </div>
             </div>
             <div class="form-group">
@@ -1576,6 +1650,102 @@
         // Kembalikan string DPJP untuk ditampilkan (dipisah koma)
         function dpjpDisplay(p) {
             return dpjpArray(p).join(', ');
+        }
+
+        // ============================================================
+        // 🚨 SKOR EWS/PEWS (Early Warning Score) — alat bantu skrining sederhana
+        // untuk deteksi dini perburukan pasien, berdasarkan RR, Nadi, Suhu,
+        // SpO2, dan Kesadaran. Disesuaikan kasar untuk pasien anak (PEWS-like).
+        //
+        // ⚠️ PENTING: Ini BUKAN pengganti penilaian klinis dokter/perawat.
+        // Skor ini alat bantu skrining sederhana berdasarkan parameter dasar,
+        // bukan skor EWS/PEWS resmi yang divalidasi (misal NEWS2 atau PEWS
+        // versi RCPCH). Selalu gunakan penilaian klinis menyeluruh.
+        // ============================================================
+        function hitungEWS(obs) {
+            let skor = 0;
+            const detail = [];
+
+            const rr = parseFloat(obs.rr);
+            const nadi = parseFloat(obs.nadi);
+            const suhu = parseFloat(obs.suhu);
+            const spo2 = parseFloat(obs.spo2);
+            const kesadaran = obs.kesadaran || 'Compos Mentis';
+
+            // RR (napas/menit) — rentang umum, longgar untuk semua usia
+            if (!isNaN(rr)) {
+                if (rr < 10 || rr > 30) { skor += 3; detail.push('RR sangat abnormal'); }
+                else if (rr < 12 || rr > 24) { skor += 2; detail.push('RR abnormal'); }
+                else if (rr < 14 || rr > 20) { skor += 1; }
+            }
+
+            // Nadi (x/menit)
+            if (!isNaN(nadi)) {
+                if (nadi < 50 || nadi > 140) { skor += 3; detail.push('Nadi sangat abnormal'); }
+                else if (nadi < 60 || nadi > 120) { skor += 2; detail.push('Nadi abnormal'); }
+                else if (nadi < 70 || nadi > 100) { skor += 1; }
+            }
+
+            // Suhu (°C)
+            if (!isNaN(suhu)) {
+                if (suhu >= 39.5 || suhu < 35) { skor += 3; detail.push('Suhu sangat abnormal'); }
+                else if (suhu >= 38.5 || suhu < 36) { skor += 2; detail.push('Demam tinggi/hipotermia'); }
+                else if (suhu >= 37.8) { skor += 1; }
+            }
+
+            // SpO2 (%)
+            if (!isNaN(spo2)) {
+                if (spo2 < 90) { skor += 3; detail.push('Saturasi sangat rendah'); }
+                else if (spo2 < 94) { skor += 2; detail.push('Saturasi rendah'); }
+                else if (spo2 < 96) { skor += 1; }
+            }
+
+            // Kesadaran
+            if (kesadaran === 'Coma' || kesadaran === 'Sopor') { skor += 3; detail.push('Kesadaran menurun berat'); }
+            else if (kesadaran === 'Apatis') { skor += 2; detail.push('Kesadaran menurun'); }
+            else if (kesadaran === 'Somnolen') { skor += 1; }
+
+            let kategori, warna, bgWarna;
+            if (skor >= 7) { kategori = 'KRITIS — Perlu Evaluasi Segera'; warna = '#c62828'; bgWarna = '#ffebee'; }
+            else if (skor >= 4) { kategori = 'WASPADA — Perlu Perhatian'; warna = '#e65100'; bgWarna = '#fff3e0'; }
+            else if (skor >= 1) { kategori = 'Perlu Dipantau'; warna = '#f9a825'; bgWarna = '#fffde7'; }
+            else { kategori = 'Normal'; warna = '#2e7d32'; bgWarna = '#e8f5e9'; }
+
+            return { skor, kategori, warna, bgWarna, detail };
+        }
+
+        // Ambil observasi terbaru untuk 1 pasien (dipakai buat referensi di Visit / Daftar Pasien)
+        function observasiTerbaru(noBed) {
+            const list = dataObservasi.filter(o => o.pasien === noBed)
+                .sort((a,b) => new Date(b.tanggal + ' ' + b.jam) - new Date(a.tanggal + ' ' + a.jam));
+            return list.length > 0 ? list[0] : null;
+        }
+
+        // Preview skor EWS real-time saat mengisi form Observasi
+        function previewEWS() {
+            const box = document.getElementById('previewEWSBox');
+            const label = document.getElementById('previewEWSLabel');
+            if (!box || !label) return;
+
+            const obs = {
+                rr: document.getElementById('obsRR').value,
+                nadi: document.getElementById('obsNadi').value,
+                suhu: document.getElementById('obsSuhu').value,
+                spo2: document.getElementById('obsSpO2').value,
+                kesadaran: document.getElementById('obsKesadaran').value
+            };
+
+            if (!obs.rr && !obs.nadi && !obs.suhu && !obs.spo2) {
+                box.style.display = 'none';
+                return;
+            }
+
+            const hasil = hitungEWS(obs);
+            box.style.display = 'block';
+            box.style.background = hasil.bgWarna;
+            box.style.border = `1px solid ${hasil.warna}`;
+            label.style.color = hasil.warna;
+            label.innerHTML = `🚨 Skor EWS: ${hasil.skor} — ${hasil.kategori}${hasil.detail.length > 0 ? '<br><span style="font-weight:400; font-size:11px;">' + hasil.detail.join(', ') + '</span>' : ''}`;
         }
 
         // State sementara chip DPJP saat form Tambah/Edit Pasien dibuka
@@ -1701,6 +1871,7 @@
         let dataPemeriksaanPenunjang = [];
         let dataVisit = [];
         let dataObservasi = [];
+        let dataChecklist = [];
         let dataSettings = {
             namaKlinik: 'Klinik Salsabiluna',
             tagline: 'Sistem Operan Pasien · @dokrifqi',
@@ -1757,7 +1928,7 @@
             saveDebounceTimer = setTimeout(() => {
                 const payload = {
                     dataPasien, dataMonitoring, dataTask, dataOperan,
-                    dataProgressNote, dataPemeriksaanPenunjang, dataSettings, dataVisit, dataObservasi,
+                    dataProgressNote, dataPemeriksaanPenunjang, dataSettings, dataVisit, dataObservasi, dataChecklist,
                     updatedAt: firebase.firestore.FieldValue.serverTimestamp()
                 };
                 db.collection(FIRESTORE_COLLECTION).doc(FIRESTORE_DOC_ID).set(payload, { merge: true })
@@ -1784,6 +1955,7 @@
                         dataPemeriksaanPenunjang = d.dataPemeriksaanPenunjang || [];
                         dataVisit = d.dataVisit || [];
                         dataObservasi = d.dataObservasi || [];
+                        dataChecklist = d.dataChecklist || [];
                         if (d.dataSettings) dataSettings = d.dataSettings;
                         isSavingFromRemote = false;
 
@@ -1824,6 +1996,8 @@
             if (activeTab && activeTab.id === 'observasi') displayObservasi();
             if (activeTab && activeTab.id === 'rekammedis') displayRekamMedisLengkap();
             if (activeTab && activeTab.id === 'dpjp') renderDaftarDPJPChips();
+            if (activeTab && activeTab.id === 'checklist') displayChecklist();
+            if (activeTab && activeTab.id === 'resumepulang') displayTabResumePulang();
         }
 
         // ===== EXPORT EXCEL FUNCTION =====
@@ -2157,6 +2331,8 @@
             if(tabName === 'observasi') displayObservasi();
             if(tabName === 'rekammedis') isiDropdownRekamMedis();
             if(tabName === 'dpjp') renderDaftarDPJPChips();
+            if(tabName === 'checklist') { isiDropdownChecklist(); displayChecklist(); }
+            if(tabName === 'resumepulang') displayTabResumePulang();
         }
 
         // Update Dashboard
@@ -2238,12 +2414,17 @@
         function displayPasienList() {
             const html = dataPasien.map(p => {
                 const taskCount = dataTask.filter(t => t.pasien === p.noBed && t.status === 'pending').length;
+                const obsTerakhir = observasiTerbaru(p.noBed);
+                const ewsBadge = obsTerakhir
+                    ? (() => { const e = hitungEWS(obsTerakhir); return `<span style="background:${e.warna}; color:white; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:700;" title="${e.kategori}">${e.skor}</span>`; })()
+                    : '<small style="color:#ccc;">-</small>';
                 return `<tr>
                     <td><strong>${p.noBed}</strong></td>
                     <td>${p.nama}</td>
                     <td><small>${dpjpDisplay(p)}</small></td>
                     <td><small>${p.diagnosisAwal || p.diagnosis || '-'}</small></td>
                     <td><span class="status-badge status-${p.status}">${p.status.toUpperCase()}</span></td>
+                    <td>${ewsBadge}</td>
                     <td>Hari ke-${hariMasuk(p.tglMasuk)}</td>
                     <td><span class="task-count ${taskCount > 0 ? 'task-pending' : ''}">${taskCount}</span></td>
                     <td>
@@ -2257,7 +2438,7 @@
                 </tr>`;
             }).join('');
 
-            document.getElementById('pasienList').innerHTML = html || '<tr><td colspan="8" class="no-data">Belum ada data pasien</td></tr>';
+            document.getElementById('pasienList').innerHTML = html || '<tr><td colspan="9" class="no-data">Belum ada data pasien</td></tr>';
             
             // Update dropdown filter DPJP (gabungkan semua DPJP dari semua pasien, termasuk yang multi-DPJP)
             const daftarDPJP = [...new Set(dataPasien.flatMap(p => dpjpArray(p)))].sort();
@@ -2301,12 +2482,17 @@
 
             const html = filtered.map(p => {
                 const taskCount = dataTask.filter(t => t.pasien === p.noBed && t.status === 'pending').length;
+                const obsTerakhir = observasiTerbaru(p.noBed);
+                const ewsBadge = obsTerakhir
+                    ? (() => { const e = hitungEWS(obsTerakhir); return `<span style="background:${e.warna}; color:white; padding:2px 8px; border-radius:10px; font-size:11px; font-weight:700;" title="${e.kategori}">${e.skor}</span>`; })()
+                    : '<small style="color:#ccc;">-</small>';
                 return `<tr>
                     <td><strong>${p.noBed}</strong></td>
                     <td>${p.nama}</td>
                     <td><small>${dpjpDisplay(p)}</small></td>
                     <td><small>${p.diagnosisAwal || '-'}</small></td>
                     <td><span class="status-badge status-${p.status}">${p.status.toUpperCase()}</span></td>
+                    <td>${ewsBadge}</td>
                     <td>Hari ke-${hariMasuk(p.tglMasuk)}</td>
                     <td><span class="task-count ${taskCount > 0 ? 'task-pending' : ''}">${taskCount}</span></td>
                     <td>
@@ -2569,6 +2755,7 @@
             document.getElementById('dpjpPasienInput').value = '';
             document.getElementById('namaPasien').value = '';
             document.getElementById('umur').value = '';
+            document.getElementById('beratBadan').value = '';
             document.getElementById('noRM').value = '';
             document.getElementById('diagnosisAwal').value = '';
             document.getElementById('diagnosisHariIni').value = '';
@@ -2593,6 +2780,7 @@
             const noBed = document.getElementById('ranapNoBed').value.trim().toUpperCase();
             const nama = document.getElementById('ranapNama').value.trim();
             const umur = document.getElementById('ranapUmur').value.trim();
+            const beratBadan = document.getElementById('ranapBB').value.trim();
             const noRM = document.getElementById('ranapNoRM').value.trim();
             const tglMasuk = document.getElementById('ranapTglMasuk').value;
             const dpjpRaw = document.getElementById('ranapDPJP').value.trim();
@@ -2626,6 +2814,7 @@
                 noBed: noBed,
                 nama: nama,
                 umur: umur || '-',
+                beratBadan: beratBadan || '',
                 noRM: noRM || '',
                 dpjp: dpjpList,
                 diagnosisAwal: diagnosisAwal || '',
@@ -2647,6 +2836,7 @@
             document.getElementById('ranapNoBed').value = '';
             document.getElementById('ranapNama').value = '';
             document.getElementById('ranapUmur').value = '';
+            document.getElementById('ranapBB').value = '';
             document.getElementById('ranapNoRM').value = '';
             document.getElementById('ranapDPJP').value = '';
             document.getElementById('ranapStatus').value = 'stabil';
@@ -2675,6 +2865,7 @@
                 noBed: document.getElementById('noBed').value.toUpperCase(),
                 nama: document.getElementById('namaPasien').value,
                 umur: document.getElementById('umur').value,
+                beratBadan: document.getElementById('beratBadan').value.trim(),
                 noRM: document.getElementById('noRM').value || '',
                 dpjp: [...formDPJPList],
                 diagnosisAwal: document.getElementById('diagnosisAwal').value,
@@ -2718,6 +2909,7 @@
             document.getElementById('dpjpPasienInput').value = '';
             document.getElementById('namaPasien').value = pasien.nama;
             document.getElementById('umur').value = pasien.umur;
+            document.getElementById('beratBadan').value = pasien.beratBadan || '';
             document.getElementById('noRM').value = pasien.noRM;
             document.getElementById('diagnosisAwal').value = pasien.diagnosisAwal;
             document.getElementById('diagnosisHariIni').value = pasien.diagnosisHariIni;
@@ -2744,6 +2936,7 @@
                 pasien.noBed = document.getElementById('noBed').value.toUpperCase();
                 pasien.nama = document.getElementById('namaPasien').value;
                 pasien.umur = document.getElementById('umur').value;
+                pasien.beratBadan = document.getElementById('beratBadan').value.trim();
                 pasien.noRM = document.getElementById('noRM').value;
                 pasien.dpjp = [...formDPJPList];
                 pasien.diagnosisAwal = document.getElementById('diagnosisAwal').value;
@@ -3942,9 +4135,26 @@
             renderVisitTaskChips();
         }
 
+        // Helper: isi dropdown pilihan pasien (dipakai modal Visit & Observasi)
+        // supaya tidak perlu ketik manual No. Bed (rawan typo/tidak ketemu)
+        function isiDropdownPasienModal(selectId, preselectNoBed = '') {
+            const select = document.getElementById(selectId);
+            if (!select) return;
+            let html = '<option value="">-- Pilih Pasien --</option>';
+            dataPasien
+                .slice()
+                .sort((a, b) => a.noBed.localeCompare(b.noBed))
+                .forEach(p => {
+                    html += `<option value="${p.noBed}">${p.noBed} - ${p.nama}${p.status === 'pulang' ? ' (Sudah Pulang)' : ''}</option>`;
+                });
+            select.innerHTML = html;
+            if (preselectNoBed) select.value = preselectNoBed.toUpperCase();
+        }
+
         function openModalVisit(noBed = '') {
             document.getElementById('modalVisit').style.display = 'block';
-            document.getElementById('visitPasien').value = noBed ? noBed.toUpperCase() : '';
+            isiDropdownPasienModal('visitPasien', noBed);
+            document.getElementById('visitPasien').onchange = tampilkanEWSTerbaruDiVisit;
             document.getElementById('visitTanggal').valueAsDate = new Date();
             document.getElementById('visitJam').value = new Date().toTimeString().slice(0,5);
             document.getElementById('visitDokter').value = dataSettings.namaDokter || '';
@@ -3966,6 +4176,34 @@
             document.getElementById('visitKontrolPulang').value = '';
 
             toggleVisitHasil();
+            tampilkanEWSTerbaruDiVisit();
+        }
+
+        // Tampilkan skor EWS dari observasi terakhir pasien yang dipilih di modal Visit
+        function tampilkanEWSTerbaruDiVisit() {
+            const noBed = document.getElementById('visitPasien').value;
+            const box = document.getElementById('visitEWSBox');
+            const label = document.getElementById('visitEWSLabel');
+            if (!box || !label) return;
+
+            if (!noBed) { box.style.display = 'none'; return; }
+
+            const terakhir = observasiTerbaru(noBed);
+            if (!terakhir) {
+                box.style.display = 'block';
+                box.style.background = '#f5f5f5';
+                box.style.border = '1px solid #ddd';
+                label.style.color = '#999';
+                label.innerHTML = 'ℹ️ Belum ada data Observasi untuk pasien ini.';
+                return;
+            }
+
+            const ews = hitungEWS(terakhir);
+            box.style.display = 'block';
+            box.style.background = ews.bgWarna;
+            box.style.border = `1px solid ${ews.warna}`;
+            label.style.color = ews.warna;
+            label.innerHTML = `🚨 EWS Terakhir: ${ews.skor} — ${ews.kategori} <span style="font-weight:400; font-size:11px;">(dari observasi ${terakhir.tanggal} ${terakhir.jam})</span>`;
         }
 
         function simpanVisit() {
@@ -3991,12 +4229,18 @@
             const sisaTask = document.getElementById('visitTaskInput').value.trim();
             if (sisaTask) tambahVisitTaskChip();
 
+            // Snapshot skor EWS dari observasi terakhir (kalau ada), buat konteks riwayat
+            const obsTerakhir = observasiTerbaru(noBed);
+            const ewsSnapshot = obsTerakhir ? hitungEWS(obsTerakhir) : null;
+
             const visitEntry = {
                 id: dataVisit.length > 0 ? Math.max(...dataVisit.map(v => v.id)) + 1 : 1,
                 pasien: noBed,
                 tanggal, jam, dokter, temuan,
                 hasil: isPulang ? 'pulang' : 'lanjut',
                 jumlahTaskBaru: 0,
+                ewsSkorSaatVisit: ewsSnapshot ? ewsSnapshot.skor : null,
+                ewsKategoriSaatVisit: ewsSnapshot ? ewsSnapshot.kategori : null,
                 timestamp: new Date().toLocaleString('id-ID')
             };
 
@@ -4048,6 +4292,78 @@
             } else {
                 alert(`✅ Visit tersimpan!${visitTaskList.length > 0 ? `\n${visitTaskList.length} task baru ditambahkan ke Task Pending.` : ''}`);
             }
+
+            // Tawarkan kirim ringkasan ke WhatsApp
+            if (confirm('📤 Kirim ringkasan visit ini ke WhatsApp sekarang?')) {
+                kirimVisitKeWA(visitEntry.id);
+            }
+        }
+
+        // ============================================================
+        // 📤 KIRIM RINGKASAN VISIT / OBSERVASI KE WHATSAPP
+        // Karena WhatsApp tidak izinkan kirim otomatis tanpa interaksi user,
+        // tombol ini membuka WhatsApp dengan pesan sudah tersusun —
+        // tinggal pilih kontak dokter yang dituju & klik kirim.
+        // ============================================================
+        function formatVisitUntukWA(v, pasien) {
+            let teks = `🩺 *LAPORAN VISIT PASIEN*\n\n`;
+            teks += `Pasien: ${pasien.nama} (${v.pasien})\n`;
+            teks += `DPJP: ${dpjpDisplay(pasien)}\n`;
+            teks += `Tanggal: ${v.tanggal} ${v.jam}\n`;
+            teks += `Dokter Visit: ${v.dokter || '-'}\n\n`;
+            teks += `*Temuan/Assessment:*\n${v.temuan || '-'}\n`;
+
+            if (v.hasil === 'pulang') {
+                teks += `\n🏠 *PASIEN PULANG*\n`;
+                if (v.kondisiPulang) teks += `Kondisi: ${v.kondisiPulang}\n`;
+                if (v.obatPulang) teks += `💊 Obat Pulang: ${v.obatPulang}\n`;
+                if (v.instruksiPulang) teks += `Instruksi: ${v.instruksiPulang}\n`;
+                if (v.tglKontrol) teks += `📅 Kontrol: ${v.tglKontrol}${v.kontrolPulang ? ' - ' + v.kontrolPulang : ''}\n`;
+            } else if (v.jumlahTaskBaru > 0) {
+                teks += `\n➕ ${v.jumlahTaskBaru} task baru ditambahkan ke Task Pending\n`;
+            }
+
+            teks += `\n_Dikirim dari Sistem Operan Pasien — ${dataSettings.namaKlinik || ''}_`;
+            return teks;
+        }
+
+        function kirimVisitKeWA(visitId) {
+            const v = dataVisit.find(x => x.id === visitId);
+            if (!v) return;
+            const pasien = dataPasien.find(p => p.noBed === v.pasien);
+            if (!pasien) return;
+
+            const teks = formatVisitUntukWA(v, pasien);
+            const url = `https://wa.me/?text=${encodeURIComponent(teks)}`;
+            window.open(url, '_blank');
+        }
+
+        function formatObservasiUntukWA(o, pasien) {
+            const ews = hitungEWS(o);
+            let teks = `🌡️ *LAPORAN OBSERVASI / VITAL SIGN*\n\n`;
+            teks += `Pasien: ${pasien.nama} (${o.pasien})\n`;
+            teks += `DPJP: ${dpjpDisplay(pasien)}\n`;
+            teks += `Tanggal: ${o.tanggal} ${o.jam}\n\n`;
+            teks += `TD: ${o.td || '-'}   Nadi: ${o.nadi || '-'} x/menit   RR: ${o.rr || '-'} x/menit\n`;
+            teks += `Suhu: ${o.suhu || '-'}°C   SpO2: ${o.spo2 || '-'}%${o.bb ? `   BB: ${o.bb} kg` : ''}\n`;
+            teks += `Kesadaran: ${o.kesadaran || '-'}\n`;
+            teks += `Intake/Output: ${o.intake || 0} / ${o.output || 0} ml\n`;
+            if (o.catatan) teks += `Catatan: ${o.catatan}\n`;
+            teks += `\n🚨 Skor EWS: ${ews.skor} (${ews.kategori})${ews.detail.length > 0 ? '\n' + ews.detail.join(', ') : ''}\n`;
+            teks += `\nPetugas: ${o.petugas || '-'}`;
+            teks += `\n\n_Dikirim dari Sistem Operan Pasien — ${dataSettings.namaKlinik || ''}_`;
+            return teks;
+        }
+
+        function kirimObservasiKeWA(obsId) {
+            const o = dataObservasi.find(x => x.id === obsId);
+            if (!o) return;
+            const pasien = dataPasien.find(p => p.noBed === o.pasien);
+            if (!pasien) return;
+
+            const teks = formatObservasiUntukWA(o, pasien);
+            const url = `https://wa.me/?text=${encodeURIComponent(teks)}`;
+            window.open(url, '_blank');
         }
 
         function displayVisit() {
@@ -4082,7 +4398,7 @@
                 visits.forEach(v => {
                     const isPulang = v.hasil === 'pulang';
                     html += `<div style="margin-bottom: 12px; padding: 12px; background: ${isPulang ? '#f0f0f0' : '#fff5f5'}; border-left: 4px solid ${isPulang ? '#666' : '#C85A54'}; border-radius: 6px;">
-                        <div><strong>📅 ${v.tanggal}</strong> | 🕐 ${v.jam} | 👨‍⚕️ ${v.dokter || '-'}</div>
+                        <div><strong>📅 ${v.tanggal}</strong> | 🕐 ${v.jam} | 👨‍⚕️ ${v.dokter || '-'}${v.ewsSkorSaatVisit !== null && v.ewsSkorSaatVisit !== undefined ? ` | 🚨 EWS: ${v.ewsSkorSaatVisit}` : ''}</div>
                         ${v.temuan ? `<div style="margin-top: 6px; white-space: pre-wrap;"><strong>Temuan:</strong> ${v.temuan}</div>` : ''}
                         ${isPulang
                             ? `<div style="margin-top: 8px; padding: 8px; background: white; border-radius: 6px;">
@@ -4095,6 +4411,9 @@
                                </div>`
                             : (v.jumlahTaskBaru > 0 ? `<div style="margin-top: 6px; font-size:12px; color:#8B3A62;">➕ ${v.jumlahTaskBaru} task baru ditambahkan</div>` : '')
                         }
+                        <div style="margin-top: 8px;">
+                            <button class="btn-sm" onclick="kirimVisitKeWA(${v.id})" style="background:#25D366; color:white;">📤 Kirim ke WA</button>
+                        </div>
                     </div>`;
                 });
 
@@ -4154,17 +4473,96 @@
             closeModal('modalResumePulang');
             displayPasienList();
             updateDashboard();
+            displayTabResumePulang();
 
-            alert(`✅ Resume Pulang untuk ${pasien.nama} (${noBed}) tersimpan!\n\nSilakan cetak/download resume dari detail pasien.`);
+            alert(`✅ Resume Pulang untuk ${pasien.nama} (${noBed}) tersimpan!\n\nSilakan cetak/download resume dari tab "Resume Pulang".`);
         }
 
         // ============================================================
+        // 🏠 TAB RESUME PULANG — pusat kelola resume pulang semua pasien
+        // ============================================================
+        function displayTabResumePulang() {
+            // 1. List pasien yang sudah berstatus PULANG
+            const sudahPulang = dataPasien.filter(p => p.status === 'pulang')
+                .sort((a, b) => new Date(b.tglPulang || 0) - new Date(a.tglPulang || 0));
+
+            const listEl = document.getElementById('listPasienSudahPulang');
+            if (listEl) {
+                if (sudahPulang.length === 0) {
+                    listEl.innerHTML = '<p class="no-data">Belum ada pasien yang pulang</p>';
+                } else {
+                    listEl.innerHTML = sudahPulang.map(p => {
+                        const lengkap = p.kondisiPulang && (p.obatPulang || p.instruksiPulang);
+                        return `<div style="background:white; border:1px solid #ddd; border-left:4px solid #2e7d32; border-radius:8px; padding:12px; margin-bottom:10px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                            <div>
+                                <strong style="font-size:13px;">${p.nama}</strong> <span style="color:#999; font-size:12px;">(${p.noBed})</span><br>
+                                <small style="color:#999;">Pulang: ${p.tglPulang || '-'} ${p.tglKontrol ? `· Kontrol: ${p.tglKontrol}` : ''}</small>
+                                ${!lengkap ? '<br><small style="color:#e65100;">⚠️ Data resume belum lengkap</small>' : ''}
+                            </div>
+                            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                                ${canEditPasienData() ? `<button class="btn-sm btn-secondary" onclick="openModalResumePulang('${p.noBed}')" style="background:#ffa000; color:white;">✏️ Edit</button>` : ''}
+                                <button class="btn-sm" onclick="cetakResumeMedis('${p.noBed}')" style="background:#2e7d32; color:white;">🖨️ Cetak</button>
+                                <button class="btn-sm" onclick="downloadResumeMedisPDF('${p.noBed}')" style="background:#1565c0; color:white;">⬇️ PDF</button>
+                            </div>
+                        </div>`;
+                    }).join('');
+                }
+            }
+
+            // 2. Dropdown pilih pasien manapun (untuk siapkan resume sebelum resmi pulang)
+            const select = document.getElementById('selectPasienResumePulang');
+            if (select) {
+                const currentVal = select.value;
+                let html = '<option value="">-- Pilih Pasien --</option>';
+                dataPasien.forEach(p => {
+                    html += `<option value="${p.noBed}">${p.noBed} - ${p.nama}${p.status === 'pulang' ? ' (Sudah Pulang)' : ''}</option>`;
+                });
+                select.innerHTML = html;
+                if (currentVal) { select.value = currentVal; tampilkanPreviewResumePulang(); }
+            }
+        }
+
+        function tampilkanPreviewResumePulang() {
+            const noBed = document.getElementById('selectPasienResumePulang').value;
+            const container = document.getElementById('previewResumePulangContent');
+            if (!container) return;
+
+            if (!noBed) { container.innerHTML = ''; return; }
+
+            const pasien = dataPasien.find(p => p.noBed === noBed);
+            if (!pasien) return;
+
+            const belumPulang = pasien.status !== 'pulang';
+
+            container.innerHTML = `
+                <div style="background:#f9f9f9; border-radius:8px; padding:14px; font-size:12.5px; line-height:1.7;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                        <strong>${pasien.nama} (${noBed})</strong>
+                        <span style="background:${belumPulang ? '#ff9800' : '#4caf50'}; color:white; padding:3px 10px; border-radius:10px; font-size:10.5px; font-weight:700;">${belumPulang ? 'BELUM PULANG (Draft)' : 'SUDAH PULANG'}</span>
+                    </div>
+                    <strong>Tanggal Pulang:</strong> ${pasien.tglPulang || '<span style="color:#999;">(belum diisi)</span>'}<br>
+                    <strong>Kondisi Pulang:</strong> ${pasien.kondisiPulang || '<span style="color:#999;">(belum diisi)</span>'}<br>
+                    <strong>💊 Obat Pulang:</strong> ${pasien.obatPulang || '<span style="color:#999;">(belum diisi)</span>'}<br>
+                    <strong>Instruksi Lain:</strong> ${pasien.instruksiPulang || '<span style="color:#999;">(belum diisi)</span>'}<br>
+                    <strong>📅 Tanggal Kontrol:</strong> ${pasien.tglKontrol || '<span style="color:#999;">(belum diisi)</span>'}<br>
+                    <strong>Tempat Kontrol:</strong> ${pasien.kontrolPulang || '<span style="color:#999;">(belum diisi)</span>'}
+
+                    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:14px;">
+                        ${canEditPasienData() ? `<button class="btn-sm btn-primary" onclick="openModalResumePulang('${noBed}')" style="background:#ffa000;">✏️ ${belumPulang ? 'Isi' : 'Edit'} Resume Pulang</button>` : ''}
+                        <button class="btn-sm" onclick="cetakResumeMedis('${noBed}')" style="background:#2e7d32; color:white;">🖨️ Cetak Resume</button>
+                        <button class="btn-sm" onclick="downloadResumeMedisPDF('${noBed}')" style="background:#1565c0; color:white;">⬇️ Download PDF</button>
+                    </div>
+                </div>
+            `;
+        }
+
+
         // 🌡️ FITUR OBSERVASI — vital sign / observasi berkala per pasien
         // (menggantikan tab Monitoring Harian yang sebelumnya belum tersimpan datanya)
         // ============================================================
         function openModalObservasi(noBed = '') {
             document.getElementById('modalObservasi').style.display = 'block';
-            document.getElementById('observasiPasien').value = noBed ? noBed.toUpperCase() : '';
+            isiDropdownPasienModal('observasiPasien', noBed);
             document.getElementById('observasiTanggal').valueAsDate = new Date();
             document.getElementById('observasiJam').value = new Date().toTimeString().slice(0,5);
             document.getElementById('obsTD').value = '';
@@ -4172,11 +4570,19 @@
             document.getElementById('obsRR').value = '';
             document.getElementById('obsSuhu').value = '';
             document.getElementById('obsSpO2').value = '';
+            document.getElementById('obsBB').value = '';
             document.getElementById('obsKesadaran').value = 'Compos Mentis';
             document.getElementById('obsIntake').value = '';
             document.getElementById('obsOutput').value = '';
             document.getElementById('obsCatatan').value = '';
             document.getElementById('obsPetugas').value = dataSettings.namaDokter || '';
+            document.getElementById('previewEWSBox').style.display = 'none';
+
+            // Pre-fill BB terakhir kalau ada, biar tidak perlu tanya ulang tiap observasi
+            if (noBed) {
+                const terakhir = observasiTerbaru(noBed.toUpperCase());
+                if (terakhir && terakhir.bb) document.getElementById('obsBB').value = terakhir.bb;
+            }
         }
 
         function simpanObservasi() {
@@ -4204,6 +4610,7 @@
                 rr: document.getElementById('obsRR').value.trim(),
                 suhu: document.getElementById('obsSuhu').value.trim(),
                 spo2: document.getElementById('obsSpO2').value.trim(),
+                bb: document.getElementById('obsBB').value.trim(),
                 kesadaran: document.getElementById('obsKesadaran').value,
                 intake: document.getElementById('obsIntake').value.trim(),
                 output: document.getElementById('obsOutput').value.trim(),
@@ -4212,12 +4619,149 @@
                 timestamp: new Date().toLocaleString('id-ID')
             };
 
+            // Hitung & simpan skor EWS otomatis
+            const ews = hitungEWS(obs);
+            obs.ewsSkor = ews.skor;
+            obs.ewsKategori = ews.kategori;
+
+            // Kalau ada BB baru, update juga BB terkini di data pasien
+            if (obs.bb) pasien.beratBadan = obs.bb;
+
             dataObservasi.push(obs);
             saveAllData();
 
             closeModal('modalObservasi');
             displayObservasi();
-            alert('✓ Observasi berhasil disimpan!');
+            displayPasienList();
+            updateDashboard();
+
+            let pesanAlert = '✓ Observasi berhasil disimpan!';
+            if (ews.skor >= 4) {
+                pesanAlert += `\n\n🚨 PERHATIAN: Skor EWS ${ews.skor} (${ews.kategori}). Segera evaluasi ulang pasien!`;
+            }
+            alert(pesanAlert);
+
+            // Tawarkan kirim ringkasan ke WhatsApp
+            if (confirm('📤 Kirim ringkasan observasi ini ke WhatsApp sekarang?')) {
+                kirimObservasiKeWA(obs.id);
+            }
+        }
+
+        // ============================================================
+        // 📈 GRAFIK TREN VITAL SIGN (Chart.js) — per pasien
+        // ============================================================
+        const chartInstances = {}; // simpan instance chart per pasien biar bisa di-destroy sebelum re-render
+
+        function renderChartObservasi(noBed, list) {
+            const canvasId = `chartObs_${noBed.replace(/[^a-zA-Z0-9]/g, '_')}`;
+            const canvas = document.getElementById(canvasId);
+            if (!canvas || typeof Chart === 'undefined') return;
+
+            // Destroy chart lama kalau ada, biar tidak numpuk/error saat re-render
+            if (chartInstances[canvasId]) {
+                chartInstances[canvasId].destroy();
+            }
+
+            const labels = list.map(o => `${o.tanggal.slice(5)} ${o.jam}`);
+
+            chartInstances[canvasId] = new Chart(canvas.getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Nadi (x/mnt)',
+                            data: list.map(o => o.nadi ? parseFloat(o.nadi) : null),
+                            borderColor: '#e53935',
+                            backgroundColor: '#e53935',
+                            yAxisID: 'yKiri',
+                            tension: 0.3,
+                            spanGaps: true
+                        },
+                        {
+                            label: 'RR (x/mnt)',
+                            data: list.map(o => o.rr ? parseFloat(o.rr) : null),
+                            borderColor: '#8e24aa',
+                            backgroundColor: '#8e24aa',
+                            yAxisID: 'yKiri',
+                            tension: 0.3,
+                            spanGaps: true
+                        },
+                        {
+                            label: 'Suhu (°C)',
+                            data: list.map(o => o.suhu ? parseFloat(o.suhu) : null),
+                            borderColor: '#fb8c00',
+                            backgroundColor: '#fb8c00',
+                            yAxisID: 'yKanan',
+                            tension: 0.3,
+                            spanGaps: true
+                        },
+                        {
+                            label: 'SpO2 (%)',
+                            data: list.map(o => o.spo2 ? parseFloat(o.spo2) : null),
+                            borderColor: '#1e88e5',
+                            backgroundColor: '#1e88e5',
+                            yAxisID: 'yKanan',
+                            tension: 0.3,
+                            spanGaps: true
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { position: 'bottom', labels: { boxWidth: 10, font: { size: 10 } } }
+                    },
+                    scales: {
+                        yKiri: {
+                            type: 'linear', position: 'left',
+                            title: { display: true, text: 'Nadi / RR', font: { size: 10 } },
+                            ticks: { font: { size: 9 } }
+                        },
+                        yKanan: {
+                            type: 'linear', position: 'right',
+                            min: 30, max: 100,
+                            title: { display: true, text: 'Suhu / SpO2', font: { size: 10 } },
+                            grid: { drawOnChartArea: false },
+                            ticks: { font: { size: 9 } }
+                        },
+                        x: { ticks: { font: { size: 9 }, maxRotation: 45, minRotation: 45 } }
+                    }
+                }
+            });
+        }
+
+        // ============================================================
+        // 💧 BALANCE CAIRAN OTOMATIS — dihitung dari semua entri Observasi
+        // ============================================================
+        function hitungBalanceCairan(noBed) {
+            const list = dataObservasi.filter(o => o.pasien === noBed);
+
+            let totalIntake = 0, totalOutput = 0;
+            list.forEach(o => {
+                totalIntake += parseFloat(o.intake) || 0;
+                totalOutput += parseFloat(o.output) || 0;
+            });
+
+            // Balance 24 jam terakhir (dari timestamp sekarang mundur 24 jam)
+            const batas24Jam = new Date();
+            batas24Jam.setHours(batas24Jam.getHours() - 24);
+            let intake24 = 0, output24 = 0;
+            list.forEach(o => {
+                const waktuObs = new Date(`${o.tanggal} ${o.jam}`);
+                if (!isNaN(waktuObs) && waktuObs >= batas24Jam) {
+                    intake24 += parseFloat(o.intake) || 0;
+                    output24 += parseFloat(o.output) || 0;
+                }
+            });
+
+            return {
+                totalIntake, totalOutput, totalBalance: totalIntake - totalOutput,
+                intake24, output24, balance24: intake24 - output24,
+                jumlahEntri: list.length
+            };
         }
 
         function displayObservasi() {
@@ -4241,12 +4785,26 @@
                 const pasien = dataPasien.find(p => p.noBed === noBed);
                 const namaLabel = pasien ? `${noBed} - ${pasien.nama}` : noBed;
                 const list = grouped[noBed].sort((a,b) => new Date(b.tanggal + ' ' + b.jam) - new Date(a.tanggal + ' ' + a.jam));
+                const balance = hitungBalanceCairan(noBed);
+                const ewsTerbaru = hitungEWS(list[0]);
 
                 html += `<div style="margin-bottom: 20px; background: white; border: 1px solid #ddd; border-radius: 8px; overflow: hidden;">
-                    <div style="background: linear-gradient(135deg, #0288d1 0%, #26c6da 100%); color: white; padding: 15px; font-weight: 600; display:flex; justify-content:space-between; align-items:center;">
+                    <div style="background: linear-gradient(135deg, #0288d1 0%, #26c6da 100%); color: white; padding: 15px; font-weight: 600; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
                         <span>🌡️ ${namaLabel}</span>
-                        <button class="btn-sm btn-secondary" onclick="openModalObservasi('${noBed}')">+ Observasi</button>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span style="background:${ewsTerbaru.warna}; padding:4px 10px; border-radius:12px; font-size:11px; font-weight:700;">EWS: ${ewsTerbaru.skor}</span>
+                            <button class="btn-sm btn-secondary" onclick="openModalObservasi('${noBed}')">+ Observasi</button>
+                        </div>
                     </div>
+
+                    <!-- Ringkasan Balance Cairan -->
+                    <div style="background:#f0f9ff; padding:10px 15px; border-bottom:1px solid #ddd; display:grid; grid-template-columns: repeat(auto-fit, minmax(130px,1fr)); gap:8px; font-size:11.5px;">
+                        <div><strong>💧 Intake 24 jam:</strong><br>${balance.intake24} ml</div>
+                        <div><strong>🚽 Output 24 jam:</strong><br>${balance.output24} ml</div>
+                        <div><strong>⚖️ Balance 24 jam:</strong><br><span style="color:${balance.balance24 >= 0 ? '#2e7d32' : '#c62828'}; font-weight:700;">${balance.balance24 >= 0 ? '+' : ''}${balance.balance24} ml</span></div>
+                        <div><strong>Σ Total sejak masuk:</strong><br>${balance.totalIntake} / ${balance.totalOutput} ml (${balance.totalBalance >= 0 ? '+' : ''}${balance.totalBalance})</div>
+                    </div>
+
                     <div class="table-container" style="border:none;">
                         <table>
                             <thead>
@@ -4257,35 +4815,56 @@
                                     <th>RR</th>
                                     <th>Suhu</th>
                                     <th>SpO2</th>
+                                    <th>BB</th>
                                     <th>Kesadaran</th>
                                     <th>Intake/Output</th>
+                                    <th>EWS</th>
                                     <th>Catatan</th>
                                     <th>Petugas</th>
+                                    <th>Aksi</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 ${list.map(o => {
-                                    const abnormal = (o.spo2 && parseInt(o.spo2) < 95) || (o.suhu && parseFloat(o.suhu) >= 38) || (o.kesadaran && o.kesadaran !== 'Compos Mentis');
-                                    return `<tr style="${abnormal ? 'background:#fff3cd;' : ''}">
+                                    const ews = hitungEWS(o);
+                                    return `<tr style="${ews.skor >= 4 ? 'background:#ffebee;' : (ews.skor >= 1 ? 'background:#fff8e1;' : '')}">
                                         <td><small>${o.tanggal}<br>${o.jam}</small></td>
                                         <td>${o.td || '-'}</td>
                                         <td>${o.nadi || '-'}</td>
                                         <td>${o.rr || '-'}</td>
                                         <td>${o.suhu || '-'}</td>
                                         <td>${o.spo2 || '-'}</td>
+                                        <td>${o.bb || '-'}</td>
                                         <td><small>${o.kesadaran || '-'}</small></td>
-                                        <td><small>${o.intake || '-'} / ${o.output || '-'}</small></td>
+                                        <td><small>${o.intake || 0} / ${o.output || 0} ml</small></td>
+                                        <td><span style="background:${ews.warna}; color:white; padding:2px 7px; border-radius:10px; font-size:10.5px; font-weight:700;">${ews.skor}</span></td>
                                         <td><small>${o.catatan || '-'}</small></td>
                                         <td><small>${o.petugas || '-'}</small></td>
+                                        <td><button class="btn-sm" onclick="kirimObservasiKeWA(${o.id})" style="background:#25D366; color:white;" title="Kirim ke WA">📤</button></td>
                                     </tr>`;
                                 }).join('')}
                             </tbody>
                         </table>
                     </div>
+
+                    ${list.length >= 2 ? `
+                    <div style="padding:15px; border-top:1px solid #eee;">
+                        <h4 style="font-size:12.5px; color:#0288d1; margin-bottom:10px;">📈 Grafik Tren Vital Sign</h4>
+                        <div style="position:relative; height:220px;">
+                            <canvas id="chartObs_${noBed.replace(/[^a-zA-Z0-9]/g, '_')}"></canvas>
+                        </div>
+                    </div>
+                    ` : ''}
                 </div>`;
             });
 
             document.getElementById('observasiContent').innerHTML = html;
+
+            // Render grafik tren vital sign untuk tiap pasien (setelah HTML/canvas ter-render di DOM)
+            Object.keys(grouped).sort().forEach(noBed => {
+                const list = grouped[noBed].slice().sort((a,b) => new Date(a.tanggal + ' ' + a.jam) - new Date(b.tanggal + ' ' + b.jam));
+                if (list.length >= 2) renderChartObservasi(noBed, list);
+            });
         }
 
         // Trend Diagnosis Functions
@@ -4356,6 +4935,123 @@
         // 📚 REKAM MEDIS KESELURUHAN — rangkuman semua data 1 pasien
         // (visit, observasi, progress note, hasil penunjang, task, dll)
         // ============================================================
+        // ============================================================
+        // ✅ CHECKLIST PERAWATAN HARIAN — item rutin yang harus dicek tiap hari
+        // per pasien (beda dari Task Pending yang sifatnya ad-hoc/insidental)
+        // ============================================================
+        const TEMPLATE_CHECKLIST_HARIAN = [
+            'Cek & ganti jalur infus / IV line',
+            'Cek tanda-tanda vital rutin sesuai jadwal',
+            'Cek & ganti balutan luka (jika ada)',
+            'Mobilisasi / reposisi pasien',
+            'Personal hygiene (oral care, kebersihan badan)',
+            'Cek kepatuhan jadwal pemberian obat',
+            'Edukasi pasien/keluarga',
+            'Cek alergi & catat di gelang/rekam medis'
+        ];
+
+        function isiDropdownChecklist() {
+            const select = document.getElementById('selectPasienChecklist');
+            if (!select) return;
+            const currentVal = select.value;
+            let html = '<option value="">-- Pilih Pasien --</option>';
+            dataPasien.forEach(p => {
+                html += `<option value="${p.noBed}">${p.noBed} - ${p.nama}${p.status === 'pulang' ? ' (Sudah Pulang)' : ''}</option>`;
+            });
+            select.innerHTML = html;
+            if (currentVal) select.value = currentVal;
+
+            const tglInput = document.getElementById('checklistTanggal');
+            if (tglInput && !tglInput.value) tglInput.valueAsDate = new Date();
+        }
+
+        // Cari (atau siapkan) entri checklist untuk pasien+tanggal tertentu.
+        // Checklist otomatis "reset" tiap hari karena entri baru dibuat per tanggal.
+        function ambilAtauBuatChecklist(noBed, tanggal) {
+            let entry = dataChecklist.find(c => c.pasien === noBed && c.tanggal === tanggal);
+            if (!entry) {
+                entry = {
+                    id: dataChecklist.length > 0 ? Math.max(...dataChecklist.map(c => c.id)) + 1 : 1,
+                    pasien: noBed,
+                    tanggal: tanggal,
+                    items: TEMPLATE_CHECKLIST_HARIAN.map(label => ({ label, checked: false, checkedBy: '', checkedAt: '' }))
+                };
+                dataChecklist.push(entry);
+            }
+            return entry;
+        }
+
+        function displayChecklist() {
+            const noBed = document.getElementById('selectPasienChecklist').value;
+            const tanggal = document.getElementById('checklistTanggal').value || new Date().toISOString().split('T')[0];
+            const container = document.getElementById('checklistContent');
+
+            if (!noBed) {
+                container.innerHTML = '<p class="no-data">Pilih pasien terlebih dahulu</p>';
+                return;
+            }
+
+            const pasien = dataPasien.find(p => p.noBed === noBed);
+            if (!pasien) return;
+
+            const entry = ambilAtauBuatChecklist(noBed, tanggal);
+            const selesai = entry.items.filter(i => i.checked).length;
+            const total = entry.items.length;
+            const persen = total > 0 ? Math.round((selesai / total) * 100) : 0;
+
+            let html = `
+            <div style="background:white; border:1px solid #ddd; border-radius:10px; padding:15px; margin-bottom:16px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <h3 style="font-size:13.5px; color:#2e7d32;">✅ ${pasien.nama} (${noBed}) — ${tanggal}</h3>
+                    <span style="background:${persen === 100 ? '#4caf50' : '#ff9800'}; color:white; padding:4px 10px; border-radius:12px; font-size:11px; font-weight:700;">${selesai}/${total} selesai</span>
+                </div>
+                <div style="background:#eee; height:6px; border-radius:3px; overflow:hidden; margin-bottom:14px;">
+                    <div style="background:${persen === 100 ? '#4caf50' : '#2196f3'}; height:100%; width:${persen}%;"></div>
+                </div>
+                <div style="display:grid; gap:8px;">`;
+
+            entry.items.forEach((item, idx) => {
+                html += `<label style="display:flex; align-items:flex-start; gap:10px; padding:8px 10px; background:${item.checked ? '#e8f5e9' : '#fafafa'}; border-radius:6px; cursor:pointer;">
+                    <input type="checkbox" ${item.checked ? 'checked' : ''} onchange="toggleChecklistItem('${entry.id}', ${idx})" style="margin-top:2px;">
+                    <span style="flex:1; font-size:12.5px; ${item.checked ? 'text-decoration:line-through; color:#888;' : ''}">${item.label}
+                        ${item.checked && item.checkedBy ? `<br><small style="color:#999;">✓ ${item.checkedBy} — ${item.checkedAt}</small>` : ''}
+                    </span>
+                </label>`;
+            });
+
+            html += `</div>
+                <div class="form-group" style="margin-top:14px;">
+                    <label style="font-size:11.5px;">Catatan Checklist (opsional)</label>
+                    <textarea id="checklistCatatan" onblur="simpanCatatanChecklist('${entry.id}')" placeholder="Catatan tambahan untuk checklist hari ini...">${entry.catatan || ''}</textarea>
+                </div>
+            </div>`;
+
+            container.innerHTML = html;
+        }
+
+        function toggleChecklistItem(entryId, itemIdx) {
+            const entry = dataChecklist.find(c => c.id === parseInt(entryId));
+            if (!entry) return;
+            const item = entry.items[itemIdx];
+            item.checked = !item.checked;
+            if (item.checked) {
+                item.checkedBy = dataSettings.namaDokter || currentRoleLabel || '-';
+                item.checkedAt = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+            } else {
+                item.checkedBy = '';
+                item.checkedAt = '';
+            }
+            saveAllData();
+            displayChecklist();
+        }
+
+        function simpanCatatanChecklist(entryId) {
+            const entry = dataChecklist.find(c => c.id === parseInt(entryId));
+            if (!entry) return;
+            entry.catatan = document.getElementById('checklistCatatan').value.trim();
+            saveAllData();
+        }
+
         function isiDropdownRekamMedis() {
             const select = document.getElementById('selectPasienRekamMedis');
             if (!select) return;
